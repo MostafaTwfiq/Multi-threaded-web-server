@@ -2,6 +2,7 @@ import threading
 import socket
 MY_HOST = "127.0.0.1"
 MY_PORT = 65432
+BUFFER_SIZE = 1024
 def server():
     while True:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -16,7 +17,7 @@ def thread_fn(s):
         with conn:
             print(f"Connected by {addr}")
             while True:
-                data = conn.recv(1024)
+                data = conn.recv(BUFFER_SIZE)
                 if not data:
                     break
                 conn.sendall(data)
