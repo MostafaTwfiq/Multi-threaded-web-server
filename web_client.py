@@ -39,6 +39,8 @@ def send_request(parsed_command , client):
         client.send(header.encode('utf-8'))
         client.send(info.encode('utf-8'))
         client.send(extra.encode('utf-8'))
+
+    recived_pack = client.recivefrom(2048)
         
 
 #WILL TAKE THE MESSAGE WHICH WILL BE SEND TO send_request() FUNCTION
