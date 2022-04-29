@@ -2,7 +2,7 @@ import threading
 import socket
 MY_HOST = "127.0.0.1"
 MY_PORT = 65432
-BUFFER_SIZE = 1024
+BUFFER_SIZE = 2048
 def server():
     try:
         while True:
@@ -23,6 +23,7 @@ def thread_fn(conn, addr):
         while True:
             ## Receive HTTP MSG. 
             data = conn.recv(BUFFER_SIZE)
+            print(data)
             if not data:
                 break
             result = parse_http_request(data=data)
@@ -34,7 +35,12 @@ def parse_http_request(data):
 
 # Write Respond
 def write_http_respond(status):
-    pass
+    if status == 200:
+        pass
+    elif status == 404:
+        pass
+    elif status == 204:
+        pass
 
 # Store File on POST Request
 def store_file(file_name, file_data):
