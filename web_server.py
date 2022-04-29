@@ -25,13 +25,15 @@ def thread_fn(conn, addr):
             data = conn.recv(BUFFER_SIZE)
             if not data:
                 break
-            result = parse_data(data=data)
+            result = parse_http_request(data=data)
             conn.sendall(data)
 
 # Parse GET and POST
-def parse_data(data):
+def parse_http_request(data):
     pass
 
+def write_http_respond(status):
+    pass
 
 # Store File on POST Request
 def store_file(file_name, file_data):
