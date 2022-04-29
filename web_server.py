@@ -13,14 +13,19 @@ def server():
 
         
 def thread_fn(s):
-        conn, addr = s.accept()
-        with conn:
-            print(f"Connected by {addr}")
-            while True:
-                data = conn.recv(BUFFER_SIZE)
-                if not data:
-                    break
-                conn.sendall(data)
+    conn, addr = s.accept()
+    with conn:
+        print(f"Connected by {addr}")
+        while True:
+            ## Receive HTTP MSG. 
+            data = conn.recv(BUFFER_SIZE)
+            if not data:
+                break
+            conn.sendall(data)
 
 def parse_data(data):
     pass
+
+
+if __name__ == "__main__":
+    server()
