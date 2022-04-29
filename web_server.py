@@ -35,10 +35,12 @@ def parse_http_request(data):
 
 # Write Respond
 def write_http_respond(status):
+    # For GET Requests
     if status == 200:
         pass
     elif status == 404:
         pass
+    # For POST Request
     elif status == 204:
         pass
 
