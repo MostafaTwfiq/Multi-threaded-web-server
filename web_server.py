@@ -8,12 +8,13 @@ def server():
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((MY_HOST, MY_PORT))
             s.listen()
-            conn_thread = threading.Thread(target=thread_fn, args=(s,))
+            conn, addr = s.accept()
+            conn_thread = threading.Thread(target=thread_fn, args=(conn, addr))
             conn_thread.start()
 
+
         
-def thread_fn(s):
-    conn, addr = s.accept()
+def thread_fn(conn, addr):
     with conn:
         print(f"Connected by {addr}")
         while True:
@@ -21,11 +22,17 @@ def thread_fn(s):
             data = conn.recv(BUFFER_SIZE)
             if not data:
                 break
+            result = parse_data(data=data)
             conn.sendall(data)
 
 def parse_data(data):
     pass
 
+def store_file(file_name, file_data):
+    pass
+
+def read_file(file_name):
+    pass
 
 if __name__ == "__main__":
     server()
