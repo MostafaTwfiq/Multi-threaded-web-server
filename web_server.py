@@ -32,6 +32,7 @@ def thread_fn(conn, addr):
 def parse_http_request(data):
     pass
 
+# Write Respond
 def write_http_respond(status):
     pass
 
