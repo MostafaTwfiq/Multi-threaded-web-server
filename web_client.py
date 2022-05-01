@@ -1,5 +1,7 @@
 import socket
 
+from requests import head
+
 #READ COMMANDS FROM I/P FILES 
 def open_commands_file():    
     f = open("commands.txt" , "r")
@@ -18,28 +20,23 @@ def send_request(parsed_command , client):
         port_number = 80
 
     client.connect(host_number , port_number)
-
-    
-    header = parsed_command[0] + " /" + parsed_command[1] + " /" + "HTTP1.1\r\n"
     info = "HOST: localhost \r\n"
     extra = "connection: keep_alive\r\n"
 
     #SEND POST REQUEST AND SEND PACKET TO SERVER
     if parsed_command[0] == "POST":
+        header = parsed_command[0] + " /" + "HTTP1.1\r\n"
         message = get_message()
         message = message + "\r\n"
-        send_message = message.enocde('utf-8')
-        client.send(header.encode('utf-8'))
-        client.send(info.encode('utf-8'))
-        client.send(extra.encode('utf-8'))
-        client.send(send_message)
+        send_message = header + info + extra + message
+        client.sendall(send_message.encoded('utf-8'))
 
     #SEND GET REQUEST AND GET PACKET FROM SERVER
     else:
-        client.send(header.encode('utf-8'))
-        client.send(info.encode('utf-8'))
-        client.send(extra.encode('utf-8'))
-
+        header = parsed_command[0] + " /" + parsed_command[1] + " /" + "HTTP1.1\r\n"
+        send_message = header + info + extra
+        client.sendall(send_message.encoded('utf-8'))
+        
     recived_pack = client.recivefrom(2048)
         
 
@@ -67,3 +64,4 @@ def run_client_host():
     
     c_socket.close()
 
+#TODO: DISPLAY RETURENED DATA AND STORE THEM IN THE DIRECTORY
