@@ -3,6 +3,7 @@ import threading
 import socket
 import os.path
 from os import path
+from unittest import result
 from grpc import Status
 from matplotlib import type1font
 from sympy import re
@@ -39,7 +40,15 @@ def thread_fn(conn, addr):
 
 # Parse GET and POST
 def parse_http_request(data):
-    pass
+    result = {}
+    data_list = data.split('\r\n')
+    header = data_list[0].split('/')
+    if header[0] == 'POST':
+        pass 
+    else:
+        pass 
+
+    return result
 
 # Get status of the request
 def get_response(result):
@@ -65,9 +74,9 @@ def get_response(result):
 def write_http_respond(result, server_result):    
     # For GET Requests
     if server_result['status'] == 200 and result['type_req'] == "POST":
-        pass
+        pass 
     elif server_result['status'] == 404:
-        pass
+        return STATUS_404
     # For POST Request
     elif server_result['status'] == 200 and result['type_req'] == "POST":
         pass
