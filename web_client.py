@@ -1,8 +1,8 @@
 from posixpath import split
 import socket
-from sys import flags
-
 from requests import head
+
+dir_path = "/media/ahmad/New Volume/8th term/network/Ass/Multi-threaded-web-server/Data/"
 
 #READ COMMANDS FROM I/P FILES 
 def open_commands_file():    
@@ -46,7 +46,9 @@ def send_request(parsed_command , client):
 #WILL TAKE THE MESSAGE WHICH WILL BE SEND TO send_request() FUNCTION
 #TO ADD IT IN CASE POST REQ.
 def get_message():
-    return "hello! world"
+    filename = input("Enter the file name: ")
+    with open(dir_path + filename , 'rb') as h:
+        return h.read()
 
 
 #CREATE SOCKET TO START CONNECTION WITH THE SERVER 
@@ -81,8 +83,7 @@ def bash_commands():
 #TODO: DISPLAY RETURENED DATA AND STORE THEM IN THE DIRECTORY
 #REQ. TO PARSE RESPONCE TO GET ACK , STATUS AND MESSAGE IF GET 
 def store_data(responce):
-    dir_path = "/media/ahmad/New Volume/8th term/network/Ass/Multi-threaded-web-server/"
-    
+
     #PARSING THE RESPOCE TO GET THE INFO.
     if extention == "html":
         pass
