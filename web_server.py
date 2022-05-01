@@ -1,10 +1,17 @@
+from email import header
 import threading
 import socket
-
+import os.path
+from os import path
 from grpc import Status
+from matplotlib import type1font
+from sympy import re
 MY_HOST = "127.0.0.1"
 MY_PORT = 65432
 BUFFER_SIZE = 2048
+STATUS_200 = "HTTP/1.0 200 OK\r\n"
+STATUS_404 = "HTTP/1.0 404 Not Found\r\n"
+
 def server():
     while True:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -26,33 +33,50 @@ def thread_fn(conn, addr):
             if not data:
                 break
             result = parse_http_request(data=data)
-            status = get_status(result)
-            request = write_http_respond()
-            conn.sendall(data)
+            server_result = get_response(result=result)
+            http_response = write_http_respond(result, server_result)
+            conn.sendall(http_response)
 
 # Parse GET and POST
 def parse_http_request(data):
     pass
 
 # Get status of the request
-def get_status(result):
-    pass
+def get_response(result):
+    server_result = {}
+    if result['type_req'] == "POST":
+        check = store_file(result['file_name'], result['file_data'])
+        if check:
+            server_result['status'] = 200
+        else:
+            server_result['status'] = 404
+    elif result['type_req'] == "GET":
+        file_data = read_file(result['file_name'],)
+        if file_data:
+            server_result['status'] = 200
+            server_result['body'] = file_data
+        else:
+            server_result['status'] = 404
+
+    return server_result
+
 
 # Write Respond
-def write_http_respond(status):
+def write_http_respond(result, server_result):    
     # For GET Requests
-    if status == 200:
+    if server_result['status'] == 200 and result['type_req'] == "POST":
         pass
-    elif status == 404:
+    elif server_result['status'] == 404:
         pass
     # For POST Request
-    elif status == 204:
+    elif server_result['status'] == 200 and result['type_req'] == "POST":
         pass
 
 # Store File on POST Request
 def store_file(file_name, file_data):
     with open(file_name, mode='w') as file: 
         file.write(file_data)
+    return path.exists(file_name)
 
 # Get file in GET Request
 def read_file(file_name):
