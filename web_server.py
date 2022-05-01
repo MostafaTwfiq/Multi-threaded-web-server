@@ -44,9 +44,16 @@ def parse_http_request(data):
     data_list = data.split('\r\n')
     header = data_list[0].split('/')
     if header[0] == 'POST':
-        pass 
+        result['type_req'] = header[0] 
+        result['http_version'] = header[1]
+        result['connection'] = data_list[2].split(':')[1]
+        result['file_name'] = ''
+        result['body'] = ''
     else:
-        pass 
+        result['type_req'] = header[0]
+        result['file_name'] = header[1]
+        result['http_version'] = header[2]
+        result['connection'] = data_list[2].split(':')[1]
 
     return result
 
@@ -73,13 +80,13 @@ def get_response(result):
 # Write Respond
 def write_http_respond(result, server_result):    
     # For GET Requests
-    if server_result['status'] == 200 and result['type_req'] == "POST":
-        pass 
+    if server_result['status'] == 200 and result['type_req'] == "GET":
+        return STATUS_200 + server_result['body'] 
     elif server_result['status'] == 404:
         return STATUS_404
     # For POST Request
     elif server_result['status'] == 200 and result['type_req'] == "POST":
-        pass
+        return STATUS_200
 
 # Store File on POST Request
 def store_file(file_name, file_data):
