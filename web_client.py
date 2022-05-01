@@ -1,5 +1,6 @@
 from posixpath import split
 import socket
+from sys import flags
 
 from requests import head
 
@@ -56,7 +57,8 @@ def get_message():
 #FORMAT: EX- GET FILENAME HOSTNAME (PORT-NUMBER)
 #FLAG == 1 "MEANS TAKE COMMAND FROM I/P FILES"  ELSE TAKE IT FROM BASH
 def run_client_host():
-    flag = 1                                            
+    print("enter 1 for bash command or 2 for file command: ")
+    flag = input()                                          
     c_socket = socket.socket(socket.AF_INET , socket.SOCK_STREAM)
     #IF COMMAND TAKEN FROM FILE 
     if flag == 1:
