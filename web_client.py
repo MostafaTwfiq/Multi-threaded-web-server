@@ -48,7 +48,8 @@ def send_request(parsed_command , client):
 def get_message():
     filename = input("Enter the file name: ")
     with open(dir_path + filename , 'rb') as h:
-        return h.read()
+        body = h.read() + filename.encode('utf-8')
+        return body
 
 
 #CREATE SOCKET TO START CONNECTION WITH THE SERVER 
@@ -78,7 +79,7 @@ def run_client_host():
     c_socket.close()
 
 def bash_commands():
-    command = input()
+    command = input("Enter the command: ")
 
 #TODO: DISPLAY RETURENED DATA AND STORE THEM IN THE DIRECTORY
 #REQ. TO PARSE RESPONCE TO GET ACK , STATUS AND MESSAGE IF GET 
