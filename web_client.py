@@ -1,3 +1,4 @@
+from posixpath import split
 import socket
 
 from requests import head
@@ -37,7 +38,8 @@ def send_request(parsed_command , client):
         send_message = header + info + extra
         client.sendall(send_message.encoded('utf-8'))
         
-    recived_pack = client.recivefrom(2048)
+    recived_pack = client.recv(2048)
+    return recived_pack
         
 
 #WILL TAKE THE MESSAGE WHICH WILL BE SEND TO send_request() FUNCTION
@@ -52,16 +54,41 @@ def get_message():
 #PARES THEM TO GET INFO
 #COMMANDS: GET AND POST ONLY
 #FORMAT: EX- GET FILENAME HOSTNAME (PORT-NUMBER)
+#FLAG == 1 "MEANS TAKE COMMAND FROM I/P FILES"  ELSE TAKE IT FROM BASH
 def run_client_host():
+    flag = 1                                            
     c_socket = socket.socket(socket.AF_INET , socket.SOCK_STREAM)
-    f = open_commands_file() 
-    command = f.readline()
+    #IF COMMAND TAKEN FROM FILE 
+    if flag == 1:
+        f = open_commands_file() 
+        command = f.readline()
+    else:
+        command = bash_commands()
     
     while command != "":
         parsed_command = command.split(" ")
-        send_request(parsed_command , c_socket)
+        data = send_request(parsed_command , c_socket)
+        store_data(data)
         command = f.readline()
     
     c_socket.close()
 
+def bash_commands():
+    command = input()
+
 #TODO: DISPLAY RETURENED DATA AND STORE THEM IN THE DIRECTORY
+#REQ. TO PARSE RESPONCE TO GET ACK , STATUS AND MESSAGE IF GET 
+def store_data(responce):
+    dir_path = "/media/ahmad/New Volume/8th term/network/Ass/Multi-threaded-web-server/"
+    
+    #PARSING THE RESPOCE TO GET THE INFO.
+    if extention == "html":
+        pass
+    elif extention == "jpg" or extention == "png" or extention == "jpeg":
+        pass
+    else:
+        pass
+
+
+
+
