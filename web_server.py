@@ -1,19 +1,18 @@
 import threading
 import socket
+
+from grpc import Status
 MY_HOST = "127.0.0.1"
 MY_PORT = 65432
 BUFFER_SIZE = 2048
 def server():
-    try:
-        while True:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind((MY_HOST, MY_PORT))
-                s.listen()
-                conn, addr = s.accept()
-                conn_thread = threading.Thread(target=thread_fn, args=(conn, addr))
-                conn_thread.start()
-    except KeyboardInterrupt:
-        print(1)
+    while True:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((MY_HOST, MY_PORT))
+            s.listen()
+            conn, addr = s.accept()
+            conn_thread = threading.Thread(target=thread_fn, args=(conn, addr))
+            conn_thread.start()
 
 
         
@@ -27,10 +26,16 @@ def thread_fn(conn, addr):
             if not data:
                 break
             result = parse_http_request(data=data)
+            status = get_status(result)
+            request = write_http_respond()
             conn.sendall(data)
 
 # Parse GET and POST
 def parse_http_request(data):
+    pass
+
+# Get status of the request
+def get_status(result):
     pass
 
 # Write Respond
