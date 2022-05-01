@@ -1,12 +1,7 @@
-from email import header
 import threading
 import socket
-import os.path
 from os import path
-from unittest import result
-from grpc import Status
-from matplotlib import type1font
-from sympy import re
+
 MY_HOST = "127.0.0.1"
 MY_PORT = 65432
 BUFFER_SIZE = 2048
