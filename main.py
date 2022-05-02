@@ -2,6 +2,7 @@ import json
 import email
 import pprint
 from io import StringIO
+import base64
 
 import socket
 import sys
@@ -12,8 +13,22 @@ if __name__ == '__main__':
     #r = requests.get('https://xkcd.com/1906/')
     #print(r.json())
     #print(r.headers)
+
+    api = 'http://localhost:80'
+    image_file = 'sample_image.png'
+
+    with open(image_file, "rb") as f:
+        im_bytes = f.read()
+    im_b64 = base64.b64encode(im_bytes).decode("utf-8")
+    print(im_b64)
+
+    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+
+    payload = json.dumps({"image": im_b64, "other_key": "value"})
     response = requests.post(api, data=payload, headers=headers)
-    print(response)
+    print(response.text)
+
+
     request = "GET / HTTP/1.1\r\nHost:%s\r\n\r\nmostafa" % '127.0.0.1:80'
     request = request.encode(encoding='UTF-8')
 
