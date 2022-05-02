@@ -3,7 +3,7 @@ import socket
 from requests import head
 
 dir_path = "/media/ahmad/New Volume/8th term/network/Ass/Multi-threaded-web-server/Data/"
-filename = ""
+
 #READ COMMANDS FROM I/P FILES 
 def open_commands_file():    
     f = open("commands.txt" , "r")
@@ -30,8 +30,7 @@ def send_request(parsed_command , client):
         header = parsed_command[0] + " /" + "HTTP1.1\r\n"
         message = get_message()
         message = message + "\r\n"
-        _filename = filename + "\r\n"
-        send_message = header + info + extra + _filename + message
+        send_message = header + info + extra + message
         client.sendall(send_message.encoded('utf-8'))
 
     #SEND GET REQUEST AND GET PACKET FROM SERVER
@@ -47,10 +46,10 @@ def send_request(parsed_command , client):
 #WILL TAKE THE MESSAGE WHICH WILL BE SEND TO send_request() FUNCTION
 #TO ADD IT IN CASE POST REQ.
 def get_message():
-    global filename
     filename_ = input("Enter the file name: ")
     with open(dir_path + filename , 'rb') as h:
-        return h.read()
+        data = h.read()
+    return "filename: " + filename_ + "\r\n" + "data: " + data
 
 #CREATE SOCKET TO START CONNECTION WITH THE SERVER 
 #REQ: SEND HOST AND PORT NUMBERS THAT WILL BE COMPATIABLE WITH SERVER
