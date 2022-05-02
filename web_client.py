@@ -7,6 +7,7 @@ import sys
 HTTP_VERSION = "HTTP/1.1"
 SERVER_IP = "127.0.0.1"
 HTTP_PORT = 80
+BUFFER_SIZE = 4096
 
 def client(command_file):
     commands = read_command(command_file)
@@ -26,6 +27,17 @@ def execute_command(command):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((SERVER_IP, HTTP_PORT))
         s.sendall(generate_http_request(command).encode(encoding='UTF-8'))
+        response = ''
+        while True:
+            data = s.recv(BUFFER_SIZE)
+            if len(data) == 0:
+                break
+            response.append(data.decode())
+
+        print(response)
+
+        #TODO: if the request where GET then we need to write the data to disk.
+
         s.close()
 
 
