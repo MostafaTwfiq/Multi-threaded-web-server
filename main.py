@@ -4,6 +4,7 @@ import pprint
 from io import StringIO
 import base64
 
+
 import socket
 import sys
 import requests
@@ -27,7 +28,6 @@ if __name__ == '__main__':
     payload = json.dumps({"image": im_b64, "other_key": "value"})
     response = requests.post(api, data=payload, headers=headers)
     print(response.text)
-
 
     request = "GET / HTTP/1.1\r\nHost:%s\r\n\r\nmostafa" % '127.0.0.1:80'
     request = request.encode(encoding='UTF-8')
