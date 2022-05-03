@@ -7,62 +7,57 @@ import sys
 HTTP_VERSION = "HTTP/1.1"
 SERVER_IP = "127.0.0.1"
 HTTP_PORT = 80
-BUFFER_SIZE = 4096
-
+BUFFER_SIZE = 200000
+PATH = "D:\desktop\eng\8thTerm\CN\Multi-threaded-web-server\client_data\\"
 def client(command_file):
     commands = read_command(command_file)
     for command in commands:
-        execute_command(generate_http_request(command))
+        execute_command(command)
 
 
 def read_command(command_file):
     commands = None
     with open(command_file, mode='r') as file:
-        commands = file.read().split('\r\n')
-
+        commands = file.read().split('\n')
     return commands
 
 
 def execute_command(command):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((SERVER_IP, HTTP_PORT))
-        s.sendall(generate_http_request(command).encode(encoding='UTF-8'))
+        s.sendall(generate_http_request(command))
         response = ''
         while True:
             data = s.recv(BUFFER_SIZE)
             if len(data) == 0:
                 break
-            response.append(data.decode())
+            response += data.decode()
 
         print(response)
-
         #TODO: if the request where GET then we need to write the data to disk.
 
         s.close()
 
-
-
 def generate_http_request(command):
     request = ''
     splitted_command = command.split(' ')
-    request = request + splitted_command[0] + splitted_command[1] + HTTP_VERSION + '\r\n'
-    request = request + "HOST: " + SERVER_IP + ":" + HTTP_PORT + '\r\n'
+    request = request + splitted_command[0] + " " + splitted_command[1] + " " + HTTP_VERSION + '\r\n'
+    request = request + "HOST: " + splitted_command[2] + ":" + str(80 if len(splitted_command) < 4 else splitted_command[3]) + '\r\n'
 
     if splitted_command[0] == 'GET':
-        request = request + get_request_headers("GET") + '\r\n\r\n'
+        request = (request + get_request_headers("GET") + '\r\n').encode()
     elif splitted_command[0] == 'POST':
         data = read_file(splitted_command[1])
         request = request + 'Content-Type: ' + get_content_type(splitted_command[1])
         request = request + 'Content-Length:  ' + str(len(data))
         request = request + get_request_headers("POST") + '\r\n\r\n'
-        request = request + data
-
+        request = request.encode() + data
     return request
 
 def get_request_headers(method):
     if method == "GET":
         return ''
-    elif mathod == "POST":
+    elif method == "POST":
         return ''
 
 def get_content_type(file_path):
@@ -76,13 +71,14 @@ def get_content_type(file_path):
 
 def read_file(file_name):
     file_content = None
-    with open(file_name, mode='rb') as file:
+    file_path = PATH + '\\' + file_name
+    with open(file_path, mode='rb') as file:
         file_content = file.read()
 
     return file_content
 
 if __name__ == "__main__":
-    client(sys.argv[0])
+    client(sys.argv[1])
 
 
 

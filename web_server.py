@@ -5,14 +5,14 @@ from os import path
 from io import StringIO
 
 MY_HOST = "127.0.0.1"
-MY_PORT = 65432
-BUFFER_SIZE = 2048
+MY_PORT = 80
+BUFFER_SIZE = 200000
 STATUS_200 = "HTTP/1.1 200 OK\r\n\r\n"
 STATUS_404 = "HTTP/1.1 404 Not Found\r\n\r\n"
+PATH = "D:\desktop\eng\8thTerm\CN\Multi-threaded-web-server\server_data"
 
 def server():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(10)
         s.bind((MY_HOST, MY_PORT))
         while True:
             s.listen()
@@ -20,21 +20,22 @@ def server():
             conn_thread = threading.Thread(target=thread_fn, args=(conn, addr))
             conn_thread.start()
 
-
-        
+  
 def thread_fn(conn, addr):
     with conn:
+        conn.settimeout(10)
         print(f"Connected by {addr}")
         message = ''
         while True:
-            ## Receive HTTP MSG. 
-            data = conn.recv(BUFFER_SIZE)
-            print(data)
-            if len(data) == 0:
+            try:
+                ## Receive HTTP MSG. 
+                data = conn.recv(BUFFER_SIZE)
+                if len(data) == 0:
+                    break
+                message += data.decode()
+            except:
+                print('Time Out')
                 break
-
-            message.append(data.decode())
-
         headers_dic = parse_http_request(data=message)
         server_result = get_response(headers_dic)
         http_response = write_http_respond(headers_dic, server_result)
@@ -52,7 +53,6 @@ def parse_http_request(data):
     headers["method"] = splitted_start_line[0]
     headers["file_name"] = splitted_start_line[1]
     headers["http_version"] = splitted_start_line[2]
-
     return headers
 
 # Get status of the request
@@ -79,7 +79,7 @@ def get_response(message_dic):
 def write_http_respond(message_dic, server_result):
     # For GET Requests
     if server_result['status'] == 200 and message_dic['method'] == "GET":
-        return (STATUS_200 + server_result['body']).encode(encoding='UTF-8')
+        return (STATUS_200.encode() + server_result['body'])
     # For POST Request
     elif server_result['status'] == 200 and message_dic['method'] == "POST":
         return STATUS_200.encode(encoding='UTF-8')
@@ -88,16 +88,20 @@ def write_http_respond(message_dic, server_result):
 
 # Store File on POST Request
 def store_file(file_name, file_data):
-    with open(file_name, mode='w') as file: 
+    file_path = PATH + '\\' + file_name
+    with open(file_path, mode='w') as file: 
         file.write(file_data)
-    return path.exists(file_name)
+    return path.exists(file_path)
 
 # Get file in GET Request
 def read_file(file_name):
     file_content = None
-    with open(file_name, mode='rb') as file: 
-        file_content = file.read()
-
+    file_path = PATH + '\\' + file_name
+    try:
+        with open(file_path, mode='rb') as file: 
+            file_content = file.read()
+    except:
+        return file_content
     return file_content
 
 if __name__ == "__main__":
