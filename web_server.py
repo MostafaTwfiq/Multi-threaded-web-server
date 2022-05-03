@@ -12,6 +12,7 @@ STATUS_404 = "HTTP/1.1 404 Not Found\r\n\r\n"
 
 def server():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(10)
         s.bind((MY_HOST, MY_PORT))
         while True:
             s.listen()
