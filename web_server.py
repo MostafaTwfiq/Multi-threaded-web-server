@@ -25,12 +25,12 @@ def server():
 
 def thread_fn(conn, addr):
     with conn:
-        conn.settimeout(10)
         print(f"Connected by {addr}")
         message = b''
         while True:
             try:
-                ## Receive HTTP MSG. 
+                ## Receive HTTP MSG.
+                conn.settimeout(5)
                 data = conn.recv(BUFFER_SIZE)
                 if len(data) == 0:
                     break

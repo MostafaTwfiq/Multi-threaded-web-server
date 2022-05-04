@@ -48,13 +48,13 @@ def generate_http_request(command):
         80 if len(splitted_command) < 4 else splitted_command[3]
     ) + b'\r\n'
 
-    if splitted_command[0] == 'GET':
-        request = (request + get_request_headers("GET") + '\r\n').encode()
-    elif splitted_command[0] == 'POST':
-        data = read_file(splitted_command[1])
-        request = request + b'Content-Type: ' + get_content_type(str(splitted_command[1]))
-        request = request + b'Content-Length:  ' + bytes(len(data))
-        request = request + get_request_headers("POST") + b'\r\n\r\n'
+    if splitted_command[0] == b'GET':
+        request = request + get_request_headers("GET") + b'\r\n'
+    elif splitted_command[0] == b'POST':
+        data = read_file(splitted_command[1].decode(encoding='UTF-8'))
+        request = request + b'Content-Type: ' + get_content_type(splitted_command[1].decode(encoding='UTF-8')) + b'\r\n'
+        request = request + b'Content-Length:  ' + str(len(data.decode(encoding='UTF-8'))).encode() + b'\r\n'
+        request = request + get_request_headers("POST") + b'\r\n'
         request = request + data
     return request
 
@@ -79,6 +79,7 @@ def get_content_type(file_path):
 def read_file(file_name):
     file_content = None
     file_path = PATH + os.sep + file_name
+    print(file_path)
     with open(file_path, mode='rb') as file:
         file_content = file.read()
 
@@ -86,4 +87,5 @@ def read_file(file_name):
 
 
 if __name__ == "__main__":
-    client(sys.argv[1])
+    #client(sys.argv[1])
+    client('commands.txt')
