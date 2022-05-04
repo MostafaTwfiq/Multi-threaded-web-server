@@ -46,31 +46,38 @@ def thread_fn(conn, addr):
 
 
 def parse_http_request(data):  # data must be bytes
-    data = data.decode(encoding='UTF-8')
-    start_line, headers = data.split('\r\n', 1)
+    start_line, headers = data.split(b'\r\n', 1)
+    #headers = headers.replace(b'\r\n\r\n', b'\r\nfile_data:')
     # construct a message from the request string
-    message = email.message_from_file(StringIO(headers.replace('\r\n\r\n', '\r\nfile_data:')))
+    message = email.message_from_bytes(headers)
     # construct a dictionary containing the headers
     headers = dict(message.items())
     # parsing first line
-    splitted_start_line = start_line.split(' ')
-    headers["method"] = splitted_start_line[0]
-    headers["file_name"] = splitted_start_line[1]
-    headers["http_version"] = splitted_start_line[2]
+    splitted_start_line = start_line.split(b' ')
+    headers['method'] = splitted_start_line[0]
+    headers['file_name'] = splitted_start_line[1]
+    headers['http_version'] = splitted_start_line[2]
+
+    if headers['method'] == b'POST':
+        _, data = data.split(b'\r\n\r\n', 1)
+        headers['file_data'] = data
+
     return headers
 
 
 # Get status of the request
 def get_response(message_dic):
     server_result = {}
-    if message_dic["method"] == "POST":
+    if message_dic['method'] == b'POST':
+        name = message_dic['file_name']
+        file_data = message_dic['file_data']
         file_exist = store_file(message_dic['file_name'], message_dic['file_data'])
         if file_exist:
             server_result['status'] = 200
         else:
             server_result['status'] = 404
-    elif message_dic["method"] == "GET":
-        file_data = read_file(message_dic['file_name'])
+    elif message_dic['method'] == b'GET':
+        file_data = read_file(message_dic[b'file_name'])
         if file_data:
             server_result['status'] = 200
             server_result['body'] = file_data
@@ -83,10 +90,10 @@ def get_response(message_dic):
 # Write Respond
 def write_http_respond(message_dic, server_result):
     # For GET Requests
-    if server_result['status'] == 200 and message_dic['method'] == "GET":
-        return STATUS_200 + server_result['body'].encode(encoding='UTF-8')
+    if server_result['status'] == 200 and message_dic['method'] == b'GET':
+        return STATUS_200 + server_result['body']
     # For POST Request
-    elif server_result['status'] == 200 and message_dic['method'] == "POST":
+    elif server_result['status'] == 200 and message_dic['method'] == b'POST':
         return STATUS_200
     elif server_result['status'] == 404:
         return STATUS_404
@@ -94,8 +101,8 @@ def write_http_respond(message_dic, server_result):
 
 # Store File on POST Request
 def store_file(file_name, file_data):
+    file_name = file_name.decode(encoding='UTF-8')
     file_path = PATH + os.sep + file_name
-    file_data = file_data.encode(encoding='UTF-8')
     if not path.exists(file_path):
         return False
 
@@ -108,6 +115,7 @@ def store_file(file_name, file_data):
 # Get file in GET Request
 def read_file(file_name):
     file_content = None
+    file_name = file_name.decode(encoding='UTF-8')
     file_path = PATH + os.sep + file_name
     try:
         with open(file_path, mode='rb') as file:

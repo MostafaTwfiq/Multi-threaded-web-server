@@ -53,7 +53,7 @@ def generate_http_request(command):
     elif splitted_command[0] == b'POST':
         data = read_file(splitted_command[1].decode(encoding='UTF-8'))
         request = request + b'Content-Type: ' + get_content_type(splitted_command[1].decode(encoding='UTF-8')) + b'\r\n'
-        request = request + b'Content-Length:  ' + str(len(data.decode(encoding='UTF-8'))).encode() + b'\r\n'
+        request = request + b'Content-Length:  ' + str(len(data)).encode() + b'\r\n'
         request = request + get_request_headers("POST") + b'\r\n'
         request = request + data
     return request
