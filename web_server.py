@@ -1,15 +1,16 @@
 import threading
 import socket
 import email
+import os
 from os import path
 from io import StringIO
 
 MY_HOST = "127.0.0.1"
 MY_PORT = 80
-BUFFER_SIZE = 200000
+BUFFER_SIZE = 4096
 STATUS_200 = "HTTP/1.1 200 OK\r\n\r\n"
 STATUS_404 = "HTTP/1.1 404 Not Found\r\n\r\n"
-PATH = "D:\desktop\eng\8thTerm\CN\Multi-threaded-web-server\server_data"
+PATH = "server_data"
 
 def server():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -96,7 +97,7 @@ def store_file(file_name, file_data):
 # Get file in GET Request
 def read_file(file_name):
     file_content = None
-    file_path = PATH + '\\' + file_name
+    file_path = PATH + os.sep + file_name
     try:
         with open(file_path, mode='rb') as file: 
             file_content = file.read()

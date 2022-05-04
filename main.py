@@ -11,11 +11,18 @@ import requests
 
 if __name__ == '__main__':
 
+
+    b = b'mostafa mohammed tawfiq'
+    split = b.split(b' ')
+    print(split)
+
+
+
     #r = requests.get('https://xkcd.com/1906/')
     #print(r.json())
     #print(r.headers)
 
-    api = 'http://localhost:80'
+    '''api = 'http://localhost:80'
     image_file = 'sample_image.png'
 
     with open(image_file, "rb") as f:
@@ -53,7 +60,7 @@ if __name__ == '__main__':
 
     # construct a dictionary containing the headers
     headers = dict(message.items())
-    print(headers)
+    print(headers)'''
     # pretty-print the dictionary of headers
     #pprint.pprint(headers, width=160)
     #print(json_obj['source_name'])  # prints the string with 'source_name' key'''
