@@ -87,5 +87,4 @@ def read_file(file_name):
 
 
 if __name__ == "__main__":
-    #client(sys.argv[1])
-    client('commands.txt')
+    client(sys.argv[1])

@@ -47,7 +47,6 @@ def thread_fn(conn, addr):
 
 def parse_http_request(data):  # data must be bytes
     start_line, headers = data.split(b'\r\n', 1)
-    #headers = headers.replace(b'\r\n\r\n', b'\r\nfile_data:')
     # construct a message from the request string
     message = email.message_from_bytes(headers)
     # construct a dictionary containing the headers
