@@ -26,8 +26,8 @@ def read_command(command_file):
 def execute_command(command):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         file_name = command.split(' ')[1]
-        #s.connect((SERVER_IP, HTTP_PORT))
-        s.connect(("localhost", 8888))
+        s.connect((SERVER_IP, HTTP_PORT))
+        # s.connect(("localhost", 8888))
         s.sendall(generate_http_request(command))
         response = b''
         response_dict = {}
