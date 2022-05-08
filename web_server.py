@@ -31,8 +31,9 @@ def thread_fn(conn, addr):
         while True:
             try:
                 # Receive HTTP MSG.
-                # conn.settimeout(5)
+                conn.settimeout(10)
                 data = conn.recv(BUFFER_SIZE)
+                conn.settimeout(None)
                 if len(data) == 0:
                     break
                 message += data
