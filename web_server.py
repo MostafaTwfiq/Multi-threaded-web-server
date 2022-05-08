@@ -6,7 +6,7 @@ from os import path
 from io import StringIO
 
 MY_HOST = b'127.0.0.1'
-MY_PORT = 80
+MY_PORT = 8080
 BUFFER_SIZE = 4096
 sperator = b'\r\n'
 STATUS_200 = b'HTTP/1.1 200 OK' + sperator
@@ -17,8 +17,8 @@ PATH = "server_data"
 def server():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((MY_HOST, MY_PORT))
+        s.listen()
         while True:
-            s.listen()
             conn, addr = s.accept()
             conn_thread = threading.Thread(target=thread_fn, args=(conn, addr))
             conn_thread.start()
@@ -28,15 +28,19 @@ def thread_fn(conn, addr):
     with conn:
         print(f"Connected by {addr}")
         message = b''
+        request_dict = {}
+        f = 0
         while True:
             try:
                 # Receive HTTP MSG.
                 conn.settimeout(10)
                 data = conn.recv(BUFFER_SIZE)
                 conn.settimeout(None)
-                if len(data) == 0:
-                    break
                 message += data
+                if len(message) == 0:
+                    f = 1
+                    break
+                
                 request_dict = parse_http_request(data=message)
                 if len(request_dict['file_data']) == int(request_dict['Content-Length']):
                     break
@@ -46,13 +50,15 @@ def thread_fn(conn, addr):
                 if request_dict['Connection'] != b'keep-alive':
                     print('Connection is Closed')
                     break
-                print(len(request_dict['file_data']), int(request_dict['Content-Length']))
             except:
                 print('Time Out')
                 break
-        server_result = get_response(request_dict)
-        http_response = write_http_respond(request_dict, server_result)
-        conn.sendall(http_response)
+        if f == 0:
+            server_result = get_response(request_dict)
+            http_response = write_http_respond(request_dict, server_result)
+            #print(http_response)
+            # print(message.decode())
+            conn.sendall(http_response)
 
 
 def parse_http_request(data):  # data must be bytes
@@ -72,7 +78,6 @@ def parse_http_request(data):  # data must be bytes
         request_dict['file_data'] = body
     else:
         request_dict['file_data'] = ''
-    print(request_dict.keys())
     return request_dict
 
 
@@ -113,6 +118,8 @@ def write_http_respond(message_dic, server_result):
 def store_file(file_name, file_data):
     file_name = file_name.decode(encoding='UTF-8')
     file_path = PATH + os.sep + file_name
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
     with open(file_path, mode='wb') as file:
         file.write(file_data)
 

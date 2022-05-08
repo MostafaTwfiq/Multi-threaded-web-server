@@ -26,7 +26,8 @@ def read_command(command_file):
 def execute_command(command):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         file_name = command.split(' ')[1]
-        s.connect((SERVER_IP, HTTP_PORT))
+        #s.connect((SERVER_IP, HTTP_PORT))
+        s.connect(("localhost", 8888))
         s.sendall(generate_http_request(command))
         response = b''
         response_dict = {}
@@ -112,6 +113,7 @@ def get_content_type(file_path):
 def save_open_file(file_name, file_data):
     file_name = file_name
     file_path = PATH + os.sep + file_name
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, mode='wb') as file:
         file.write(file_data)
     webbrowser.open(os.path.realpath(file_path))
