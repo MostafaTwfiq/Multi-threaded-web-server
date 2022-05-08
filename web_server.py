@@ -6,7 +6,7 @@ from os import path
 from io import StringIO
 
 MY_HOST = b'127.0.0.1'
-MY_PORT = 8080
+MY_PORT = 80
 BUFFER_SIZE = 4096
 sperator = b'\r\n'
 STATUS_200 = b'HTTP/1.1 200 OK' + sperator
