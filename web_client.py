@@ -42,12 +42,11 @@ def execute_command(command):
                 elif len(response_dict['file_data']) > int(response_dict['Content-Length']):
                     print("Error in data")
                     break
-                if response_dict['Connection'] != 'keep-alive':
+                if response_dict['Connection'] != b'keep-alive':
                     print('Connection is Closed')
                     break
-                print(response_dict.keys())
             except:
-                print('Connection Closed')
+                print('Exception')
                 break
 
         if int(response_dict['status']) == 200 and int(response_dict['Content-Length']) != 0:
@@ -67,7 +66,7 @@ def parse_http_request(data):
         line = h.split(b' ')
         if b'Content-Length:' in line:
             response_dict['Content-Length'] = line[-1]
-        elif b'Connection' in line:
+        elif b'Connection:' in line:
             response_dict['Connection'] = line[-1]
     response_dict['file_data'] = body
     return response_dict
