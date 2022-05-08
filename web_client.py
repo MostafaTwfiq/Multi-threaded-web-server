@@ -43,6 +43,12 @@ def generate_http_request(command):
     command = command.encode(encoding='UTF-8')
     request = b''
     splitted_command = command.split(b' ')
+
+    #test real server
+    checker = splitted_command[2].split('.')
+    if checker[0] == "www":
+        splitted_command[2] = get_host_number(splitted_command[2])
+        
     request = request + splitted_command[0] + b' ' + splitted_command[1] + b' ' + HTTP_VERSION + b'\r\n'
     request = request + b'HOST: ' + splitted_command[2] + b':' + bytes(
         80 if len(splitted_command) < 4 else splitted_command[3]
@@ -85,6 +91,14 @@ def read_file(file_name):
 
     return file_content
 
+def get_host_number(_host_name):
+    try:
+        host_ip_ = socket.gethostbyname(_host_name)
+    except socket.gaierror:
+        print("error while resolving the host")
+        return
+    
+    return host_ip_
 
 if __name__ == "__main__":
     client(sys.argv[1])
