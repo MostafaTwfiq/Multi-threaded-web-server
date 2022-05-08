@@ -57,7 +57,7 @@ def execute_command(command):
             print(response.decode())
         s.close()
 
-def parse_http_request(data):  # data must be bytes
+def parse_http_request(data): 
     response_dict = {}
     header, body = data.split(b'\r\n\r\n', 1)
     header_list = header.split(b'\r\n')

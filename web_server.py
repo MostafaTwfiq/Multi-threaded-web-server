@@ -45,6 +45,7 @@ def thread_fn(conn, addr):
                 if request_dict['Connection'] != 'keep-alive':
                     print('Connection is Closed')
                     break
+                print(len(request_dict['file_data']), int(request_dict['Content-Length']))
             except:
                 print('Time Out')
                 break
