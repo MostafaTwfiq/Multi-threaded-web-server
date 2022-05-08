@@ -42,7 +42,7 @@ def thread_fn(conn, addr):
                 elif len(request_dict['file_data']) > int(request_dict['Content-Length']):
                     print("Error in data")
                     break
-                if request_dict['Connection'] != 'keep-alive':
+                if request_dict['Connection'] != b'keep-alive':
                     print('Connection is Closed')
                     break
                 print(len(request_dict['file_data']), int(request_dict['Content-Length']))
@@ -63,14 +63,15 @@ def parse_http_request(data):  # data must be bytes
     request_dict['http_version'] = header_list[0].split(b' ')[2]
     for h in header_list:
         line = h.split(b' ')
-        if 'Connection:' in line:
+        if b'Connection:' in line:
             request_dict['Connection'] = line[-1]
-        elif 'Content-Length:' in line:
+        elif b'Content-Length:' in line:
             request_dict['Content-Length'] = line[-1]
     if request_dict['method'] == b'POST':
         request_dict['file_data'] = body
     else:
         request_dict['file_data'] = ''
+    print(request_dict.keys())
     return request_dict
 
 
