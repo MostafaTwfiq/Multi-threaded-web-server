@@ -8,8 +8,9 @@ from io import StringIO
 MY_HOST = b'127.0.0.1'
 MY_PORT = 80
 BUFFER_SIZE = 4096
-STATUS_200 = b'HTTP/1.1 200 OK\r\n\r\n'
-STATUS_404 = b'HTTP/1.1 404 Not Found\r\n\r\n'
+sperator = b'\r\n'
+STATUS_200 = b'HTTP/1.1 200 OK' + sperator
+STATUS_404 = b'HTTP/1.1 404 Not Found' + sperator
 PATH = "server_data"
 
 
@@ -29,54 +30,60 @@ def thread_fn(conn, addr):
         message = b''
         while True:
             try:
-                ## Receive HTTP MSG.
-                conn.settimeout(5)
+                # Receive HTTP MSG.
+                # conn.settimeout(5)
                 data = conn.recv(BUFFER_SIZE)
                 if len(data) == 0:
                     break
                 message += data
+                request_dict = parse_http_request(data=message)
+                if len(request_dict['file_data']) == int(request_dict['Content-Length']):
+                    break
+                elif len(request_dict['file_data']) > int(request_dict['Content-Length']):
+                    print("Error in data")
+                    break
+                if request_dict['Connection'] != 'keep-alive':
+                    print('Connection is Closed')
+                    break
             except:
                 print('Time Out')
                 break
-
-        headers_dic = parse_http_request(data=message)
-        server_result = get_response(headers_dic)
-        http_response = write_http_respond(headers_dic, server_result)
+        server_result = get_response(request_dict)
+        http_response = write_http_respond(request_dict, server_result)
         conn.sendall(http_response)
 
 
 def parse_http_request(data):  # data must be bytes
-    start_line, headers = data.split(b'\r\n', 1)
-    # construct a message from the request string
-    message = email.message_from_bytes(headers)
-    # construct a dictionary containing the headers
-    headers = dict(message.items())
-    # parsing first line
-    splitted_start_line = start_line.split(b' ')
-    headers['method'] = splitted_start_line[0]
-    headers['file_name'] = splitted_start_line[1]
-    headers['http_version'] = splitted_start_line[2]
-
-    if headers['method'] == b'POST':
-        _, data = data.split(b'\r\n\r\n', 1)
-        headers['file_data'] = data
-
-    return headers
+    request_dict = {}
+    header, body = data.split(b'\r\n\r\n', 1)
+    header_list = header.split(b'\r\n')
+    request_dict['method'] = header_list[0].split(b' ')[0]
+    request_dict['file_name'] = header_list[0].split(b' ')[1]
+    request_dict['http_version'] = header_list[0].split(b' ')[2]
+    for h in header_list:
+        line = h.split(b' ')
+        if 'Connection:' in line:
+            request_dict['Connection'] = line[-1]
+        elif 'Content-Length:' in line:
+            request_dict['Content-Length'] = line[-1]
+    if request_dict['method'] == b'POST':
+        request_dict['file_data'] = body
+    else:
+        request_dict['file_data'] = ''
+    return request_dict
 
 
 # Get status of the request
 def get_response(message_dic):
     server_result = {}
     if message_dic['method'] == b'POST':
-        name = message_dic['file_name']
-        file_data = message_dic['file_data']
         file_exist = store_file(message_dic['file_name'], message_dic['file_data'])
         if file_exist:
             server_result['status'] = 200
         else:
             server_result['status'] = 404
     elif message_dic['method'] == b'GET':
-        file_data = read_file(message_dic[b'file_name'])
+        file_data = read_file(message_dic['file_name'])
         if file_data:
             server_result['status'] = 200
             server_result['body'] = file_data
@@ -90,24 +97,24 @@ def get_response(message_dic):
 def write_http_respond(message_dic, server_result):
     # For GET Requests
     if server_result['status'] == 200 and message_dic['method'] == b'GET':
-        return STATUS_200 + server_result['body']
+        file =  server_result['body']
+        return STATUS_200 + b'Content-Length: '+ str(len(file)).encode() + sperator + b'Connection: keep-alive'+ sperator + sperator + file
     # For POST Request
     elif server_result['status'] == 200 and message_dic['method'] == b'POST':
-        return STATUS_200
+        return STATUS_200 + b'Content-Length: 0' + sperator + b'Connection: keep-alive' + sperator + sperator + b''
     elif server_result['status'] == 404:
-        return STATUS_404
+        return STATUS_404 + b'Content-Length: 0' + sperator + b'Connection: keep-alive' + sperator + sperator + b''
 
 
 # Store File on POST Request
 def store_file(file_name, file_data):
     file_name = file_name.decode(encoding='UTF-8')
     file_path = PATH + os.sep + file_name
-    if not path.exists(file_path):
-        return False
-
     with open(file_path, mode='wb') as file:
         file.write(file_data)
 
+    if not path.exists(file_path):
+        return False
     return True
 
 
@@ -121,7 +128,6 @@ def read_file(file_name):
             file_content = file.read()
     except:
         return file_content
-
     return file_content
 
 
