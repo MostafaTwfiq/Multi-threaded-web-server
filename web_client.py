@@ -1,6 +1,7 @@
 import socket
 import os
 import sys
+import webbrowser
 
 HTTP_VERSION = b'HTTP/1.1'
 SERVER_IP = b'127.0.0.1'
@@ -24,20 +25,52 @@ def read_command(command_file):
 
 def execute_command(command):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        file_name = command.split(' ')[1]
         s.connect((SERVER_IP, HTTP_PORT))
+        # s.connect(("localhost", 8888))
         s.sendall(generate_http_request(command))
         response = b''
+        response_dict = {}
+        f = 0
         while True:
-            data = s.recv(BUFFER_SIZE)
-            if len(data) == 0:
+            try:
+                data = s.recv(BUFFER_SIZE)
+                response += data
+                if len(response) == 0:
+                    f = 1
+                    break
+                response_dict = parse_http_request(data=response)
+                if 'file_data' in response_dict and len(response_dict['file_data']) == int(response_dict['Content-Length']):
+                    break
+                elif 'file_data' in response_dict and len(response_dict['file_data']) > int(response_dict['Content-Length']):
+                    f = 1
+                    print("Error in body")
+                    break
+            except:
+                print('Exception')
                 break
-            response += data
-
-        print(response.decode())
-        # TODO: if the request where GET then we need to write the data to disk.
-
+        if f == 0:
+            if int(response_dict['status']) == 200 and int(response_dict['Content-Length']) != 0:
+                #save and open
+                save_open_file(file_name, response_dict['file_data'])
+            else:
+                print(response.decode())
         s.close()
 
+def parse_http_request(data): 
+    response_dict = {}
+    header, body = data.split(b'\r\n\r\n', 1)
+    header_list = header.split(b'\r\n')
+    response_dict['http_version'] = header_list[0].split(b' ')[0]
+    response_dict['status'] = header_list[0].split(b' ')[1]
+    for h in header_list:
+        line = h.split(b' ')
+        if b'Content-Length:' in line:
+            response_dict['Content-Length'] = line[-1]
+        elif b'Connection:' in line:
+            response_dict['Connection'] = line[-1]
+    response_dict['file_data'] = body
+    return response_dict
 
 def generate_http_request(command):
     command = command.encode(encoding='UTF-8')
@@ -53,6 +86,7 @@ def generate_http_request(command):
     elif splitted_command[0] == b'POST':
         data = read_file(splitted_command[1].decode(encoding='UTF-8'))
         request = request + b'Content-Type: ' + get_content_type(splitted_command[1].decode(encoding='UTF-8')) + b'\r\n'
+        request = request + b'Connection: '+b'keep-alive'+ b'\r\n'
         request = request + b'Content-Length:  ' + str(len(data)).encode() + b'\r\n'
         request = request + get_request_headers("POST") + b'\r\n'
         request = request + data
@@ -76,10 +110,17 @@ def get_content_type(file_path):
         return b'text/plain'
 
 
+def save_open_file(file_name, file_data):
+    file_name = file_name
+    file_path = PATH + os.sep + file_name
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    with open(file_path, mode='wb') as file:
+        file.write(file_data)
+    webbrowser.open(os.path.realpath(file_path))
+
 def read_file(file_name):
     file_content = None
     file_path = PATH + os.sep + file_name
-    print(file_path)
     with open(file_path, mode='rb') as file:
         file_content = file.read()
 
