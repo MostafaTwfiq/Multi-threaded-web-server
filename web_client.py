@@ -31,30 +31,30 @@ def execute_command(command):
         s.sendall(generate_http_request(command))
         response = b''
         response_dict = {}
+        f = 0
         while True:
             try:
                 data = s.recv(BUFFER_SIZE)
-                if len(data) == 0:
-                    break
                 response += data
+                if len(response) == 0:
+                    f = 1
+                    break
                 response_dict = parse_http_request(data=response)
-                if len(response_dict['file_data']) == int(response_dict['Content-Length']):
+                if 'file_data' in response_dict and len(response_dict['file_data']) == int(response_dict['Content-Length']):
                     break
-                elif len(response_dict['file_data']) > int(response_dict['Content-Length']):
-                    print("Error in data")
-                    break
-                if response_dict['Connection'] != b'keep-alive':
-                    print('Connection is Closed')
+                elif 'file_data' in response_dict and len(response_dict['file_data']) > int(response_dict['Content-Length']):
+                    f = 1
+                    print("Error in body")
                     break
             except:
                 print('Exception')
                 break
-
-        if int(response_dict['status']) == 200 and int(response_dict['Content-Length']) != 0:
-            #save and open
-            save_open_file(file_name, response_dict['file_data'])
-        else:
-            print(response.decode())
+        if f == 0:
+            if int(response_dict['status']) == 200 and int(response_dict['Content-Length']) != 0:
+                #save and open
+                save_open_file(file_name, response_dict['file_data'])
+            else:
+                print(response.decode())
         s.close()
 
 def parse_http_request(data): 

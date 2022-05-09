@@ -45,10 +45,8 @@ def thread_fn(conn, addr):
                 if len(request_dict['file_data']) == int(request_dict['Content-Length']):
                     break
                 elif len(request_dict['file_data']) > int(request_dict['Content-Length']):
-                    print("Error in data")
-                    break
-                if request_dict['Connection'] != b'keep-alive':
-                    print('Connection is Closed')
+                    f = 1
+                    print("Error in body")
                     break
             except:
                 print('Time Out')
@@ -56,8 +54,6 @@ def thread_fn(conn, addr):
         if f == 0:
             server_result = get_response(request_dict)
             http_response = write_http_respond(request_dict, server_result)
-            #print(http_response)
-            # print(message.decode())
             conn.sendall(http_response)
 
 

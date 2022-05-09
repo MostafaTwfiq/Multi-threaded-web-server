@@ -1,2 +1,1 @@
-GET sample_image.png 127.0.0.1 80
-GET /hypertext/WWW/TheProject.html info.cern.ch 80
+POST sample_image.png 127.0.0.1 80
