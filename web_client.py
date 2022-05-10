@@ -1,6 +1,8 @@
+import email
 import socket
 import os
 import sys
+import threading
 import webbrowser
 
 HTTP_VERSION = b'HTTP/1.1'
@@ -10,67 +12,74 @@ BUFFER_SIZE = 4096
 PATH = "client_data"
 
 
-def client(command_file):
-    commands = read_command(command_file)
+def commands_exec_thread(conn, commands, requests_methods):
     for command in commands:
-        execute_command(command)
+        request = generate_http_request(command)
+        method, _ = request.split(b' ', 1)
+        conn.sendall(request)
+        requests_methods.append(method)
 
 
-def read_command(command_file):
+def receive_responses_thread(conn, requests_methods):
+    with conn:
+        message = b''
+        while True:
+            try:
+                conn.settimeout(30)
+                data = conn.recv(BUFFER_SIZE)
+                conn.settimeout(None)
+                message += data
+                message, response_dict = parse_http_response(message, requests_methods[0])
+                if response_dict is not None:
+                    execute_response(response_dict, requests_methods.pop())
+
+            except:
+                print('Time Out')
+                break
+
+
+def client(command_file):
+    commands = read_commands(command_file)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((SERVER_IP, HTTP_PORT))
+        requests_methods = []
+        comm_exec_thread = threading.Thread(target=commands_exec_thread, args=(s, commands, requests_methods))
+        rec_resp_thread = threading.Thread(target=receive_responses_thread, args=(s, commands, requests_methods))
+
+        comm_exec_thread.start()
+        rec_resp_thread.start()
+
+
+def read_commands(command_file):
     commands = None
     with open(command_file, mode='r') as file:
         commands = file.read().split('\n')
     return commands
 
 
-def execute_command(command):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        file_name = command.split(' ')[1]
-        s.connect((SERVER_IP, HTTP_PORT))
-        # s.connect(("localhost", 8888))
-        s.sendall(generate_http_request(command))
-        response = b''
-        response_dict = {}
-        f = 0
-        while True:
-            try:
-                data = s.recv(BUFFER_SIZE)
-                response += data
-                if len(response) == 0:
-                    f = 1
-                    break
-                response_dict = parse_http_request(data=response)
-                if 'file_data' in response_dict and len(response_dict['file_data']) == int(response_dict['Content-Length']):
-                    break
-                elif 'file_data' in response_dict and len(response_dict['file_data']) > int(response_dict['Content-Length']):
-                    f = 1
-                    print("Error in body")
-                    break
-            except:
-                print('Exception')
-                break
-        if f == 0:
-            if int(response_dict['status']) == 200 and int(response_dict['Content-Length']) != 0:
-                #save and open
-                save_open_file(file_name, response_dict['file_data'])
-            else:
-                print(response.decode())
-        s.close()
+def execute_response(response_dict, method):
+    # TODO: check if method is GET and write the file in the client_data file.
+    return None
 
-def parse_http_request(data): 
-    response_dict = {}
-    header, body = data.split(b'\r\n\r\n', 1)
-    header_list = header.split(b'\r\n')
-    response_dict['http_version'] = header_list[0].split(b' ')[0]
-    response_dict['status'] = header_list[0].split(b' ')[1]
-    for h in header_list:
-        line = h.split(b' ')
-        if b'Content-Length:' in line:
-            response_dict['Content-Length'] = line[-1]
-        elif b'Connection:' in line:
-            response_dict['Connection'] = line[-1]
-    response_dict['file_data'] = body
-    return response_dict
+
+def parse_http_response(data, method):  # data must be bytes
+    if b'\r\n\r\n' not in data:
+        return data, None
+
+    response, remaining_data = data.split(b'\r\n\r\n', 1)
+    start_line, headers = response.split(b'\r\n', 1)
+    message = email.message_from_bytes(headers)
+    response_dict = dict(message.items())
+    # parsing first line
+    splitted_start_line = start_line.split(b' ', 3)
+    response_dict['http_version'] = splitted_start_line[0]
+    response_dict['response_code'] = splitted_start_line[1]
+    response_dict['response_state'] = splitted_start_line[2]
+    if method == b'GET' and int(response_dict['Content-Length'].decode()) <= len(remaining_data):
+        response_dict['file_data'], remaining_data = remaining_data.split('\r\n', 1)
+
+    return remaining_data, response_dict
+
 
 def generate_http_request(command):
     command = command.encode(encoding='UTF-8')
@@ -79,17 +88,16 @@ def generate_http_request(command):
     request = request + splitted_command[0] + b' ' + splitted_command[1] + b' ' + HTTP_VERSION + b'\r\n'
     request = request + b'HOST: ' + splitted_command[2] + b':' + bytes(
         80 if len(splitted_command) < 4 else splitted_command[3]
-    ) + b'\r\n'
+    ) + b'\r\n' + b'Connection: ' + b'keep-alive' + b'\r\n'
 
     if splitted_command[0] == b'GET':
         request = request + get_request_headers("GET") + b'\r\n'
     elif splitted_command[0] == b'POST':
         data = read_file(splitted_command[1].decode(encoding='UTF-8'))
         request = request + b'Content-Type: ' + get_content_type(splitted_command[1].decode(encoding='UTF-8')) + b'\r\n'
-        request = request + b'Connection: '+b'keep-alive'+ b'\r\n'
         request = request + b'Content-Length:  ' + str(len(data)).encode() + b'\r\n'
         request = request + get_request_headers("POST") + b'\r\n'
-        request = request + data
+        request = request + data + b'\r\n'
     return request
 
 
@@ -117,6 +125,7 @@ def save_open_file(file_name, file_data):
     with open(file_path, mode='wb') as file:
         file.write(file_data)
     webbrowser.open(os.path.realpath(file_path))
+
 
 def read_file(file_name):
     file_content = None

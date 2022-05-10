@@ -110,12 +110,12 @@ def write_http_respond(message_dic, server_result):
     if server_result['status'] == 200 and message_dic['method'] == b'GET':
         file = server_result['body']
         return STATUS_200 + b'Content-Length: ' + str(
-            len(file)).encode() + sperator + b'Connection: keep-alive' + sperator + sperator + file
+            len(file)).encode() + sperator + b'Connection: keep-alive' + sperator + sperator + file + sperator
     # For POST Request
     elif server_result['status'] == 200 and message_dic['method'] == b'POST':
-        return STATUS_200 + b'Content-Length: 0' + sperator + b'Connection: keep-alive' + sperator + sperator + b''
+        return STATUS_200 + b'Content-Length: 0' + sperator + b'Connection: keep-alive' + sperator + sperator
     elif server_result['status'] == 404:
-        return STATUS_404 + b'Content-Length: 0' + sperator + b'Connection: keep-alive' + sperator + sperator + b''
+        return STATUS_404 + b'Content-Length: 0' + sperator + b'Connection: keep-alive' + sperator + sperator
 
 
 # Store File on POST Request
