@@ -3,7 +3,6 @@ import socket
 import email
 import os
 from os import path
-from io import StringIO
 
 MY_HOST = b'127.0.0.1'
 MY_PORT = 80
@@ -20,16 +19,18 @@ def server():
         s.listen()
         while True:
             conn, addr = s.accept()
-            conn_thread = threading.Thread(target=thread_fn, args=(conn, addr))
+            conn_thread = threading.Thread(target=conn_thread_fn, args=(conn, addr))
             conn_thread.start()
 
 
-def thread_fn(conn, addr):
+def conn_thread_fn(conn, addr):
+    requests_queue = []
+    conn_flag = [True]
+    requests_thread = threading.Thread(target=conn_thread_fn, args=(conn, requests_queue, conn_flag))
+    requests_thread.start()
     with conn:
         print(f"Connected by {addr}")
         message = b''
-        request_dict = {}
-        f = 0
         while True:
             try:
                 # Receive HTTP MSG.
@@ -37,44 +38,50 @@ def thread_fn(conn, addr):
                 data = conn.recv(BUFFER_SIZE)
                 conn.settimeout(None)
                 message += data
-                if len(message) == 0:
-                    f = 1
-                    break
-                
-                request_dict = parse_http_request(data=message)
-                if len(request_dict['file_data']) == int(request_dict['Content-Length']):
-                    break
-                elif len(request_dict['file_data']) > int(request_dict['Content-Length']):
-                    f = 1
-                    print("Error in body")
-                    break
+                message, request_dict = parse_http_request(data=message)
+                if request_dict is not None:
+                    if request_dict['http_version'] == b'HTTP/1.0':
+                        server_result = get_response(request_dict)
+                        http_response = write_http_respond(request_dict, server_result)
+                        conn.sendall(http_response)
+                        # TODO: check if the server will close the connection or the client
+                        break
+                    elif request_dict['http_version'] == b'HTTP/1.1':
+                        requests_queue.append(request_dict)
+
             except:
                 print('Time Out')
                 break
-        if f == 0:
+
+        conn_flag[0] = False
+
+
+def requests_thread_fn(conn, requests_queue, conn_flag):
+    while conn_flag[0]:
+        if len(requests_queue) > 0:
+            request_dict = requests_queue.pop()
             server_result = get_response(request_dict)
             http_response = write_http_respond(request_dict, server_result)
             conn.sendall(http_response)
 
 
 def parse_http_request(data):  # data must be bytes
-    request_dict = {}
-    header, body = data.split(b'\r\n\r\n', 1)
-    header_list = header.split(b'\r\n')
-    request_dict['method'] = header_list[0].split(b' ')[0]
-    request_dict['file_name'] = header_list[0].split(b' ')[1]
-    request_dict['http_version'] = header_list[0].split(b' ')[2]
-    for h in header_list:
-        line = h.split(b' ')
-        if b'Connection:' in line:
-            request_dict['Connection'] = line[-1]
-        elif b'Content-Length:' in line:
-            request_dict['Content-Length'] = line[-1]
-    if request_dict['method'] == b'POST':
-        request_dict['file_data'] = body
-    else:
-        request_dict['file_data'] = ''
-    return request_dict
+    if b'\r\n\r\n' not in data:
+        return data, None
+
+    request, remaining_data = data.split(b'\r\n\r\n', 1)
+    start_line, headers = request.split(b'\r\n', 1)
+    message = email.message_from_bytes(headers)
+    request_dict = dict(message.items())
+    # parsing first line
+    splitted_start_line = start_line.split(b' ')
+    request_dict['method'] = splitted_start_line[0]
+    request_dict['file_name'] = splitted_start_line[1]
+    request_dict['http_version'] = splitted_start_line[2]
+    if request_dict['method'] == b'POST' and int(request_dict['Content-Length'].decode()) <= len(remaining_data):
+        request_dict['file_data'], remaining_data = remaining_data.split('\r\n', 1)
+
+    return remaining_data, request_dict
 
 
 # Get status of the request
@@ -101,8 +108,9 @@ def get_response(message_dic):
 def write_http_respond(message_dic, server_result):
     # For GET Requests
     if server_result['status'] == 200 and message_dic['method'] == b'GET':
-        file =  server_result['body']
-        return STATUS_200 + b'Content-Length: '+ str(len(file)).encode() + sperator + b'Connection: keep-alive'+ sperator + sperator + file
+        file = server_result['body']
+        return STATUS_200 + b'Content-Length: ' + str(
+            len(file)).encode() + sperator + b'Connection: keep-alive' + sperator + sperator + file
     # For POST Request
     elif server_result['status'] == 200 and message_dic['method'] == b'POST':
         return STATUS_200 + b'Content-Length: 0' + sperator + b'Connection: keep-alive' + sperator + sperator + b''
