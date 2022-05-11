@@ -1,13 +1,11 @@
-from csv import reader
-from threading import *
-import socket
 import email
 import os
+import socket
 from os import path
+from threading import *
 
 resources_semaphore = Semaphore(1)
 resources_dict = {}
-
 
 MY_HOST = b'127.0.0.1'
 MY_PORT = 80
@@ -19,16 +17,18 @@ PATH = "server_data"
 
 
 def server():
+    connections_count = [0]
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((MY_HOST, MY_PORT))
         s.listen()
         while True:
             conn, addr = s.accept()
-            conn_thread = Thread(target=conn_thread_fn, args=(conn, addr))
+            conn_thread = Thread(target=conn_thread_fn, args=(conn, addr, connections_count))
             conn_thread.start()
 
 
-def conn_thread_fn(conn, addr):
+def conn_thread_fn(conn, addr, conn_count):
+    conn_count[0] += 1
     requests_queue = []
     conn_flag = [True]
     requests_thread = Thread(target=conn_thread_fn, args=(conn, requests_queue, conn_flag))
@@ -39,7 +39,7 @@ def conn_thread_fn(conn, addr):
         while True:
             try:
                 # Receive HTTP MSG.
-                conn.settimeout(10)
+                conn.settimeout(timeout_heuristic(conn_count))
                 data = conn.recv(BUFFER_SIZE)
                 conn.settimeout(None)
                 message += data
@@ -59,6 +59,7 @@ def conn_thread_fn(conn, addr):
                 print('Time Out')
                 break
 
+        conn_count[0] -= 1
         conn_flag[0] = False
 
 
@@ -95,19 +96,16 @@ def parse_http_request(data):  # data must be bytes
 
 # Get status of the request
 def get_response(message_dic):
-    mutix = None
-    wrt_sem = None
-    readers = 0
     resources_semaphore.acquire()
     if message_dic['file_name'] not in resources_dict:
         resources_dict[message_dic['file_name'].decode()] = [Semaphore(1), Semaphore(1), 0]
-    
+
     mutix, wrt_sem, readers = resources_dict[message_dic['file_name'].decode()]
     resources_semaphore.release()
 
     server_result = {}
     if message_dic['method'] == b'POST':
-        #readers-writes semaphore
+        # readers-writes semaphore
         wrt_sem.acquire()
 
         file_exist = store_file(message_dic['file_name'], message_dic['file_data'])
@@ -119,19 +117,21 @@ def get_response(message_dic):
         else:
             server_result['status'] = 404
     elif message_dic['method'] == b'GET':
-        #readers-writer semaphore
+        # readers-writer semaphore
         mutix.acquire()
         readers += 1
-        resources_dict[message_dic['file_name'].decode()][2] = readers #update readers count of the resource in the resources dictionary
+        resources_dict[message_dic['file_name'].decode()][
+            2] = readers  # update readers count of the resource in the resources dictionary
         if readers == 1:
-            wrt_sem.acquire() 
+            wrt_sem.acquire()
         mutix.release()
 
         file_data = read_file(message_dic['file_name'])
 
         mutix.acquire()
         readers -= 1
-        resources_dict[message_dic['file_name'].decode()][2] = readers #update readers count of the resource in the resources dictionary
+        resources_dict[message_dic['file_name'].decode()][
+            2] = readers  # update readers count of the resource in the resources dictionary
         if readers == 0:
             wrt_sem.release()
 
@@ -185,6 +185,10 @@ def read_file(file_name):
     except:
         return file_content
     return file_content
+
+
+def timeout_heuristic(conn_count):
+    return 10 * 1 / conn_count
 
 
 if __name__ == "__main__":

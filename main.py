@@ -11,7 +11,6 @@ import requests
 
 if __name__ == '__main__':
 
-
     b = b'mostafa mohammed tawfiq'
     split = b.split(b' ')
     print(split)
