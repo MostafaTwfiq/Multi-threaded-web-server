@@ -1,8 +1,13 @@
-import threading
+from csv import reader
+from threading import *
 import socket
 import email
 import os
 from os import path
+
+resources_semaphore = Semaphore(1)
+resources_dict = {}
+
 
 MY_HOST = b'127.0.0.1'
 MY_PORT = 80
@@ -19,14 +24,14 @@ def server():
         s.listen()
         while True:
             conn, addr = s.accept()
-            conn_thread = threading.Thread(target=conn_thread_fn, args=(conn, addr))
+            conn_thread = Thread(target=conn_thread_fn, args=(conn, addr))
             conn_thread.start()
 
 
 def conn_thread_fn(conn, addr):
     requests_queue = []
     conn_flag = [True]
-    requests_thread = threading.Thread(target=conn_thread_fn, args=(conn, requests_queue, conn_flag))
+    requests_thread = Thread(target=conn_thread_fn, args=(conn, requests_queue, conn_flag))
     requests_thread.start()
     with conn:
         print(f"Connected by {addr}")
@@ -44,6 +49,7 @@ def conn_thread_fn(conn, addr):
                         server_result = get_response(request_dict)
                         http_response = write_http_respond(request_dict, server_result)
                         conn.sendall(http_response)
+                        conn.close()
                         # TODO: check if the server will close the connection or the client
                         break
                     elif request_dict['http_version'] == b'HTTP/1.1':
@@ -78,23 +84,59 @@ def parse_http_request(data):  # data must be bytes
     request_dict['method'] = splitted_start_line[0]
     request_dict['file_name'] = splitted_start_line[1]
     request_dict['http_version'] = splitted_start_line[2]
-    if request_dict['method'] == b'POST' and int(request_dict['Content-Length'].decode()) <= len(remaining_data):
-        request_dict['file_data'], remaining_data = remaining_data.split('\r\n', 1)
+    if request_dict['method'] == b'POST':
+        if int(request_dict['Content-Length'].decode()) <= len(remaining_data):
+            request_dict['file_data'], remaining_data = remaining_data.split('\r\n', 1)
+        else:
+            return data, None
 
     return remaining_data, request_dict
 
 
 # Get status of the request
 def get_response(message_dic):
+    mutix = None
+    wrt_sem = None
+    readers = 0
+    resources_semaphore.acquire()
+    if message_dic['file_name'] not in resources_dict:
+        resources_dict[message_dic['file_name'].decode()] = [Semaphore(1), Semaphore(1), 0]
+    
+    mutix, wrt_sem, readers = resources_dict[message_dic['file_name'].decode()]
+    resources_semaphore.release()
+
     server_result = {}
     if message_dic['method'] == b'POST':
+        #readers-writes semaphore
+        wrt_sem.acquire()
+
         file_exist = store_file(message_dic['file_name'], message_dic['file_data'])
+
+        wrt_sem.release()
+
         if file_exist:
             server_result['status'] = 200
         else:
             server_result['status'] = 404
     elif message_dic['method'] == b'GET':
+        #readers-writer semaphore
+        mutix.acquire()
+        readers += 1
+        resources_dict[message_dic['file_name'].decode()][2] = readers #update readers count of the resource in the resources dictionary
+        if readers == 1:
+            wrt_sem.acquire() 
+        mutix.release()
+
         file_data = read_file(message_dic['file_name'])
+
+        mutix.acquire()
+        readers -= 1
+        resources_dict[message_dic['file_name'].decode()][2] = readers #update readers count of the resource in the resources dictionary
+        if readers == 0:
+            wrt_sem.release()
+
+        mutix.release()
+
         if file_data:
             server_result['status'] = 200
             server_result['body'] = file_data
