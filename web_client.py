@@ -1,102 +1,132 @@
+import email
 import socket
 import os
 import sys
+from threading import *
 import webbrowser
+
+opened_connections = {}  # label: requests_queue
 
 HTTP_VERSION = b'HTTP/1.1'
 SERVER_IP = b'127.0.0.1'
-HTTP_PORT = 80
 BUFFER_SIZE = 4096
 PATH = "client_data"
 
 
+def commands_exec_thread(host):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        requests_queue = []
+        sent_requests_queue = []
+        opened_connections[host] = requests_queue
+        ip, port = host.split(':')
+        s.connect((ip, int(port)))
+        rec_resp_thread = Thread(target=receive_responses_thread, args=(s, sent_requests_queue))
+        rec_resp_thread.start()
+
+        while True:
+            if len(requests_queue) > 0:
+                request = requests_queue.pop(0)
+                method, file_name, _ = request.split(b' ', 2)
+                try:
+                    s.sendall(request)
+                except:
+                    break
+                sent_requests_queue.append([method.decode(), file_name.decode()])
+
+    del opened_connections[host]
+
+
+def receive_responses_thread(conn, sent_requests_queue):
+    with conn:
+        message = b''
+        while True:
+            data = conn.recv(BUFFER_SIZE)
+            if len(data) == 0:
+                break
+            message += data
+            message, response_dict = parse_http_response(message, sent_requests_queue[0][0])
+            if response_dict is not None:
+                execute_response(response_dict, sent_requests_queue.pop(0))
+
+
 def client(command_file):
-    commands = read_command(command_file)
+    commands = read_commands(command_file)
     for command in commands:
-        execute_command(command)
+        request, ip, port = generate_http_request(command)
+        host = ip + ':' + port
+        if host not in opened_connections:
+            comm_exec_thread = Thread(target=commands_exec_thread, args=(host, ))
+            comm_exec_thread.start()
+            while host not in opened_connections:
+                continue
+
+        opened_connections[host].append(request)
 
 
-def read_command(command_file):
+def read_commands(command_file):
     commands = None
     with open(command_file, mode='r') as file:
         commands = file.read().split('\n')
     return commands
 
 
-def execute_command(command):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        file_name = command.split(' ')[1]
-        s.connect((SERVER_IP, HTTP_PORT))
-        # s.connect(("localhost", 8888))
-        s.sendall(generate_http_request(command))
-        response = b''
-        response_dict = {}
-        f = 0
-        while True:
-            try:
-                data = s.recv(BUFFER_SIZE)
-                response += data
-                if len(response) == 0:
-                    f = 1
-                    break
-                response_dict = parse_http_request(data=response)
-                if 'file_data' in response_dict and len(response_dict['file_data']) == int(response_dict['Content-Length']):
-                    break
-                elif 'file_data' in response_dict and len(response_dict['file_data']) > int(response_dict['Content-Length']):
-                    f = 1
-                    print("Error in body")
-                    break
-            except:
-                print('Exception')
-                break
-        if f == 0:
-            if int(response_dict['status']) == 200 and int(response_dict['Content-Length']) != 0:
-                #save and open
-                save_open_file(file_name, response_dict['file_data'])
-            else:
-                print(response.decode())
-        s.close()
+def execute_response(response_dict, method_and_file):
+    if method_and_file[0] == 'GET' and response_dict['response_code'] == '200':
+        store_file(method_and_file[1], response_dict['file_data'])
 
-def parse_http_request(data): 
-    response_dict = {}
-    header, body = data.split(b'\r\n\r\n', 1)
-    header_list = header.split(b'\r\n')
-    response_dict['http_version'] = header_list[0].split(b' ')[0]
-    response_dict['status'] = header_list[0].split(b' ')[1]
-    for h in header_list:
-        line = h.split(b' ')
-        if b'Content-Length:' in line:
-            response_dict['Content-Length'] = line[-1]
-        elif b'Connection:' in line:
-            response_dict['Connection'] = line[-1]
-    response_dict['file_data'] = body
-    return response_dict
+
+def parse_http_response(data, method):  # data must be bytes
+    if b'\r\n\r\n' not in data:
+        return data, None
+
+    response, remaining_data = data.split(b'\r\n\r\n', 1)
+    start_line, headers = response.split(b'\r\n', 1)
+    message = email.message_from_bytes(headers)
+    response_dict = dict(message.items())
+    # parsing first line
+    splitted_start_line = start_line.split(b' ', 2)
+    response_dict['http_version'] = splitted_start_line[0].decode()
+    response_dict['response_code'] = splitted_start_line[1].decode()
+    response_dict['response_state'] = splitted_start_line[2].decode()
+    if method == 'GET':
+        file_length = int(response_dict['Content-Length'])
+        if file_length < len(remaining_data):
+            response_dict['file_data'] = remaining_data[0:file_length:1]
+            if len(remaining_data) - file_length == 2:
+                remaining_data = b''
+            else:
+                remaining_data = remaining_data[file_length + 2:len(remaining_data):1]
+        else:
+            return data, None
+
+    return remaining_data, response_dict
+
 
 def generate_http_request(command):
     command = command.encode(encoding='UTF-8')
     request = b''
     splitted_command = command.split(b' ')
+    ip = splitted_command[2]
+    port = bytes(80 if len(splitted_command) < 4 else splitted_command[3])
     request = request + splitted_command[0] + b' ' + splitted_command[1] + b' ' + HTTP_VERSION + b'\r\n'
-    request = request + b'HOST: ' + splitted_command[2] + b':' + bytes(
-        80 if len(splitted_command) < 4 else splitted_command[3]
-    ) + b'\r\n'
+    request = request + b'HOST: ' + ip + b':' + port + b'\r\n' + b'Connection: ' + b'keep-alive' + b'\r\n'
 
     if splitted_command[0] == b'GET':
         request = request + get_request_headers("GET") + b'\r\n'
     elif splitted_command[0] == b'POST':
         data = read_file(splitted_command[1].decode(encoding='UTF-8'))
         request = request + b'Content-Type: ' + get_content_type(splitted_command[1].decode(encoding='UTF-8')) + b'\r\n'
-        request = request + b'Connection: '+b'keep-alive'+ b'\r\n'
         request = request + b'Content-Length:  ' + str(len(data)).encode() + b'\r\n'
         request = request + get_request_headers("POST") + b'\r\n'
-        request = request + data
-    return request
+        request = request + data + b'\r\n'
+
+    return request, ip.decode(), port.decode()
 
 
 def get_request_headers(method):
-    if method == "GET":
+    if method == 'GET':
         return b''
-    elif method == "POST":
+    elif method == 'POST':
         return b''
 
 
@@ -110,13 +140,13 @@ def get_content_type(file_path):
         return b'text/plain'
 
 
-def save_open_file(file_name, file_data):
-    file_name = file_name
+def store_file(file_name, file_data):
     file_path = PATH + os.sep + file_name
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, mode='wb') as file:
         file.write(file_data)
     webbrowser.open(os.path.realpath(file_path))
+
 
 def read_file(file_name):
     file_content = None
@@ -128,4 +158,5 @@ def read_file(file_name):
 
 
 if __name__ == "__main__":
-    client(sys.argv[1])
+    client('commands.txt')
+    #client(sys.argv[1])

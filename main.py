@@ -11,9 +11,8 @@ import requests
 
 if __name__ == '__main__':
 
-
-    b = b'mostafa mohammed tawfiq'
-    split = b.split(b' ')
+    b = b'HTTP/1.1 200 OK\r\n'
+    split = b.split(b' ', 2)
     print(split)
 
 
