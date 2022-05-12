@@ -5,7 +5,7 @@ import sys
 from threading import *
 import webbrowser
 
-opened_connections = {}  # label: [requests_queue]
+opened_connections = {}  # label: requests_queue
 
 HTTP_VERSION = b'HTTP/1.1'
 SERVER_IP = b'127.0.0.1'
@@ -25,13 +25,13 @@ def commands_exec_thread(host):
 
         while True:
             if len(requests_queue) > 0:
-                request = requests_queue.pop()
+                request = requests_queue.pop(0)
                 method, file_name, _ = request.split(b' ', 2)
                 try:
                     s.sendall(request)
                 except:
                     break
-                sent_requests_queue.append([method, file_name])
+                sent_requests_queue.append([method.decode(), file_name.decode()])
 
     del opened_connections[host]
 
@@ -46,16 +46,16 @@ def receive_responses_thread(conn, sent_requests_queue):
             message += data
             message, response_dict = parse_http_response(message, sent_requests_queue[0][0])
             if response_dict is not None:
-                execute_response(response_dict, sent_requests_queue.pop())
+                execute_response(response_dict, sent_requests_queue.pop(0))
 
 
 def client(command_file):
     commands = read_commands(command_file)
     for command in commands:
         request, ip, port = generate_http_request(command)
-        host = ip + port
-        if str(host) not in opened_connections:
-            comm_exec_thread = Thread(target=commands_exec_thread, args=host)
+        host = ip + ':' + port
+        if host not in opened_connections:
+            comm_exec_thread = Thread(target=commands_exec_thread, args=(host, ))
             comm_exec_thread.start()
             while host not in opened_connections:
                 continue
@@ -71,7 +71,7 @@ def read_commands(command_file):
 
 
 def execute_response(response_dict, method_and_file):
-    if method_and_file[0] == 'GET' and response_dict['response_code'] == b'200':
+    if method_and_file[0] == 'GET' and response_dict['response_code'] == '200':
         store_file(method_and_file[1], response_dict['file_data'])
 
 
@@ -84,12 +84,20 @@ def parse_http_response(data, method):  # data must be bytes
     message = email.message_from_bytes(headers)
     response_dict = dict(message.items())
     # parsing first line
-    splitted_start_line = start_line.split(b' ', 3)
-    response_dict['http_version'] = splitted_start_line[0]
-    response_dict['response_code'] = splitted_start_line[1]
-    response_dict['response_state'] = splitted_start_line[2]
-    if method == 'GET' and int(response_dict['Content-Length'].decode()) <= len(remaining_data):
-        response_dict['file_data'], remaining_data = remaining_data.split('\r\n', 1)
+    splitted_start_line = start_line.split(b' ', 2)
+    response_dict['http_version'] = splitted_start_line[0].decode()
+    response_dict['response_code'] = splitted_start_line[1].decode()
+    response_dict['response_state'] = splitted_start_line[2].decode()
+    if method == 'GET':
+        file_length = int(response_dict['Content-Length'])
+        if file_length < len(remaining_data):
+            response_dict['file_data'] = remaining_data[0:file_length:1]
+            if len(remaining_data) - file_length == 2:
+                remaining_data = b''
+            else:
+                remaining_data = remaining_data[file_length + 2:len(remaining_data):1]
+        else:
+            return data, None
 
     return remaining_data, response_dict
 
@@ -116,9 +124,9 @@ def generate_http_request(command):
 
 
 def get_request_headers(method):
-    if method == "GET":
+    if method == 'GET':
         return b''
-    elif method == "POST":
+    elif method == 'POST':
         return b''
 
 
@@ -133,7 +141,6 @@ def get_content_type(file_path):
 
 
 def store_file(file_name, file_data):
-    file_name = file_name
     file_path = PATH + os.sep + file_name
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, mode='wb') as file:
@@ -151,4 +158,5 @@ def read_file(file_name):
 
 
 if __name__ == "__main__":
-    client(sys.argv[1])
+    client('commands.txt')
+    #client(sys.argv[1])
