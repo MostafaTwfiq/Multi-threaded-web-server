@@ -91,12 +91,12 @@ def parse_http_request(data):  # data must be bytes
     request_dict['http_version'] = splitted_start_line[2].decode()
     if request_dict['method'] == 'POST':
         file_length = int(request_dict['Content-Length'])
-        if file_length < len(remaining_data):
+        if file_length <= len(remaining_data):
             request_dict['file_data'] = remaining_data[0:file_length:1]
-            if len(remaining_data) - file_length == 2:
+            if len(remaining_data) - file_length == 0:
                 remaining_data = b''
             else:
-                remaining_data = remaining_data[file_length + 2:len(remaining_data):1]
+                remaining_data = remaining_data[file_length:len(remaining_data):1]
         else:
             return data, None
 
@@ -161,7 +161,7 @@ def write_http_respond(message_dic, server_result):
     if server_result['status'] == 200 and message_dic['method'] == 'GET':
         file = server_result['body']
         return STATUS_200 + b'Content-Length: ' + str(
-            len(file)).encode() + sperator + b'Connection: keep-alive' + sperator + sperator + file + sperator
+            len(file)).encode() + sperator + b'Connection: keep-alive' + sperator + sperator + file
     # For POST Request
     elif server_result['status'] == 200 and message_dic['method'] == 'POST':
         return STATUS_200 + b'Content-Length: 0' + sperator + b'Connection: keep-alive' + sperator + sperator

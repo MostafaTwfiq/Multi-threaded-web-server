@@ -20,6 +20,7 @@ def commands_exec_thread(host):
         opened_connections[host] = requests_queue
         ip, port = host.split(':')
         s.connect((ip, int(port)))
+        # s.connect(("localhost", 8888))
         rec_resp_thread = Thread(target=receive_responses_thread, args=(s, sent_requests_queue))
         rec_resp_thread.start()
 
@@ -90,12 +91,12 @@ def parse_http_response(data, method):  # data must be bytes
     response_dict['response_state'] = splitted_start_line[2].decode()
     if method == 'GET':
         file_length = int(response_dict['Content-Length'])
-        if file_length < len(remaining_data):
+        if file_length <= len(remaining_data):
             response_dict['file_data'] = remaining_data[0:file_length:1]
-            if len(remaining_data) - file_length == 2:
+            if len(remaining_data) - file_length == 0:
                 remaining_data = b''
             else:
-                remaining_data = remaining_data[file_length + 2:len(remaining_data):1]
+                remaining_data = remaining_data[file_length:len(remaining_data):1]
         else:
             return data, None
 
@@ -118,7 +119,7 @@ def generate_http_request(command):
         request = request + b'Content-Type: ' + get_content_type(splitted_command[1].decode(encoding='UTF-8')) + b'\r\n'
         request = request + b'Content-Length:  ' + str(len(data)).encode() + b'\r\n'
         request = request + get_request_headers("POST") + b'\r\n'
-        request = request + data + b'\r\n'
+        request = request + data
 
     return request, ip.decode(), port.decode()
 
