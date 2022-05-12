@@ -5,6 +5,7 @@ import sys
 from threading import *
 import webbrowser
 
+cached_files = {}
 opened_connections = {}  # label: requests_queue
 
 HTTP_VERSION = b'HTTP/1.1'
@@ -53,15 +54,19 @@ def receive_responses_thread(conn, sent_requests_queue):
 def client(command_file):
     commands = read_commands(command_file)
     for command in commands:
-        request, ip, port = generate_http_request(command)
-        host = ip + ':' + port
+        _request_list = generate_http_request(command)
+        
+        if _request_list == None:
+            return
+
+        host = _request_list[1] + ':' + _request_list[2]
         if host not in opened_connections:
             comm_exec_thread = Thread(target=commands_exec_thread, args=(host, ))
             comm_exec_thread.start()
             while host not in opened_connections:
                 continue
 
-        opened_connections[host].append(request)
+        opened_connections[host].append(_request_list[0])
 
 
 def read_commands(command_file):
@@ -113,7 +118,13 @@ def generate_http_request(command):
     request = request + b'HOST: ' + ip + b':' + port + b'\r\n' + b'Connection: ' + b'keep-alive' + b'\r\n'
 
     if splitted_command[0] == b'GET':
+        # if file stored in disk stop req and read file
+        if _is_stored(splitted_command[1] , ip , port):
+            open_file(PATH + os.sep + splitted_command[1])
+            return
+
         request = request + get_request_headers("GET") + b'\r\n'
+    
     elif splitted_command[0] == b'POST':
         data = read_file(splitted_command[1].decode(encoding='UTF-8'))
         request = request + b'Content-Type: ' + get_content_type(splitted_command[1].decode(encoding='UTF-8')) + b'\r\n'
@@ -141,12 +152,12 @@ def get_content_type(file_path):
         return b'text/plain'
 
 
-def store_file(file_name, file_data):
+def store_file(file_name, file_data, host_name, port_number):
     file_path = PATH + os.sep + file_name
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, mode='wb') as file:
         file.write(file_data)
-    webbrowser.open(os.path.realpath(file_path))
+    cached_files[file_name , host_name , port_number] = "saved"
 
 
 def read_file(file_name):
@@ -157,6 +168,16 @@ def read_file(file_name):
 
     return file_content
 
+def _is_stored(filename , ip , port_num):
+
+    for _file , host , port in cached_files:
+        if _file == filename and host == ip and port == port_num:
+            return True
+    
+    return False
+
+def open_file(path):
+    webbrowser.open(os.path.realpath(path))
 
 if __name__ == "__main__":
     client('commands.txt')
