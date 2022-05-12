@@ -50,7 +50,6 @@ def conn_thread_fn(conn, addr, conn_count):
                         http_response = write_http_respond(request_dict, server_result)
                         conn.sendall(http_response)
                         conn.close()
-                        # TODO: check if the server will close the connection or the client
                         break
                     elif request_dict['http_version'] == b'HTTP/1.1':
                         requests_queue.append(request_dict)

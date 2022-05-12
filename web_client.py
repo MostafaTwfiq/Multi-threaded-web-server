@@ -15,27 +15,22 @@ PATH = "client_data"
 def commands_exec_thread(conn, commands, requests_methods):
     for command in commands:
         request = generate_http_request(command)
-        method, _ = request.split(b' ', 1)
+        method, file_name, _ = request.split(b' ', 2)
         conn.sendall(request)
-        requests_methods.append(method)
+        requests_methods.append([method, file_name])
 
 
 def receive_responses_thread(conn, requests_methods):
     with conn:
         message = b''
         while True:
-            try:
-                conn.settimeout(30)
-                data = conn.recv(BUFFER_SIZE)
-                conn.settimeout(None)
-                message += data
-                message, response_dict = parse_http_response(message, requests_methods[0])
-                if response_dict is not None:
-                    execute_response(response_dict, requests_methods.pop())
-
-            except:
-                print('Time Out')
+            data = conn.recv(BUFFER_SIZE)
+            if len(data) == 0:
                 break
+            message += data
+            message, response_dict = parse_http_response(message, requests_methods[0][0])
+            if response_dict is not None:
+                execute_response(response_dict, requests_methods.pop())
 
 
 def client(command_file):
@@ -45,7 +40,6 @@ def client(command_file):
         requests_methods = []
         comm_exec_thread = threading.Thread(target=commands_exec_thread, args=(s, commands, requests_methods))
         rec_resp_thread = threading.Thread(target=receive_responses_thread, args=(s, commands, requests_methods))
-
         comm_exec_thread.start()
         rec_resp_thread.start()
 
@@ -57,9 +51,9 @@ def read_commands(command_file):
     return commands
 
 
-def execute_response(response_dict, method):
-    # TODO: check if method is GET and write the file in the client_data file.
-    return None
+def execute_response(response_dict, method_and_file):
+    if method_and_file[0] == 'GET' and response_dict['response_code'] == b'200':
+        store_file(method_and_file[1], response_dict['file_data'])
 
 
 def parse_http_response(data, method):  # data must be bytes
@@ -75,7 +69,7 @@ def parse_http_response(data, method):  # data must be bytes
     response_dict['http_version'] = splitted_start_line[0]
     response_dict['response_code'] = splitted_start_line[1]
     response_dict['response_state'] = splitted_start_line[2]
-    if method == b'GET' and int(response_dict['Content-Length'].decode()) <= len(remaining_data):
+    if method == 'GET' and int(response_dict['Content-Length'].decode()) <= len(remaining_data):
         response_dict['file_data'], remaining_data = remaining_data.split('\r\n', 1)
 
     return remaining_data, response_dict
@@ -118,7 +112,7 @@ def get_content_type(file_path):
         return b'text/plain'
 
 
-def save_open_file(file_name, file_data):
+def store_file(file_name, file_data):
     file_name = file_name
     file_path = PATH + os.sep + file_name
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
