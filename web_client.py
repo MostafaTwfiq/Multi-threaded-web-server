@@ -5,12 +5,14 @@ import sys
 from threading import *
 import webbrowser
 
+cached_files = []
 opened_connections = {}  # label: requests_queue
 
 HTTP_VERSION = b'HTTP/1.1'
 SERVER_IP = b'127.0.0.1'
 BUFFER_SIZE = 4096
-PATH = "client_data"
+DATA_PATH = 'client_data'
+CACHE_PATH = 'cache'
 
 
 def commands_exec_thread(host):
@@ -20,8 +22,7 @@ def commands_exec_thread(host):
         opened_connections[host] = requests_queue
         ip, port = host.split(':')
         s.connect((ip, int(port)))
-        # s.connect(("localhost", 8888))
-        rec_resp_thread = Thread(target=receive_responses_thread, args=(s, sent_requests_queue))
+        rec_resp_thread = Thread(target=receive_responses_thread, args=(s, sent_requests_queue, host))
         rec_resp_thread.start()
 
         while True:
@@ -37,7 +38,7 @@ def commands_exec_thread(host):
     del opened_connections[host]
 
 
-def receive_responses_thread(conn, sent_requests_queue):
+def receive_responses_thread(conn, sent_requests_queue, host):
     with conn:
         message = b''
         while True:
@@ -47,12 +48,31 @@ def receive_responses_thread(conn, sent_requests_queue):
             message += data
             message, response_dict = parse_http_response(message, sent_requests_queue[0][0])
             if response_dict is not None:
-                execute_response(response_dict, sent_requests_queue.pop(0))
+                execute_response(response_dict, sent_requests_queue.pop(0), host)
+
+
+def get_file_if_cached(command):
+    splitted_command = command.split(' ')
+    method = splitted_command[0]
+    file_path = splitted_command[1]
+    ip = splitted_command[2]
+    port = bytes(80 if len(splitted_command) < 4 else splitted_command[3])
+    cached_file_key = ip + ':' + str(port) + '-' + file_path
+    if method == 'GET' and cached_file_key in cached_files:
+        return file_path, read_file(file_path, True)
+
+    return None
 
 
 def client(command_file):
     commands = read_commands(command_file)
     for command in commands:
+        # Check if the file is cached.
+        file_path, file_data = get_file_if_cached(command)
+        if file_data is not None:
+            store_file(file_path, file_data)
+
+        # The file is not cached, create new response.
         request, ip, port = generate_http_request(command)
         host = ip + ':' + port
         if host not in opened_connections:
@@ -71,9 +91,12 @@ def read_commands(command_file):
     return commands
 
 
-def execute_response(response_dict, method_and_file):
+def execute_response(response_dict, method_and_file, host):
     if method_and_file[0] == 'GET' and response_dict['response_code'] == '200':
         store_file(method_and_file[1], response_dict['file_data'])
+        # Cache the file and added to the cached files data structure.
+        store_file(method_and_file[1], response_dict['file_data'], True, False)
+        cached_files.append(host + '-' + method_and_file[1])
 
 
 def parse_http_response(data, method):  # data must be bytes
@@ -141,17 +164,21 @@ def get_content_type(file_path):
         return b'text/plain'
 
 
-def store_file(file_name, file_data):
-    file_path = PATH + os.sep + file_name
+def store_file(file_name, file_data, in_cache=False, open_file=True):
+    path = CACHE_PATH if in_cache else DATA_PATH
+    file_path = path + os.sep + file_name
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, mode='wb') as file:
         file.write(file_data)
-    webbrowser.open(os.path.realpath(file_path))
+
+    if open_file:
+        webbrowser.open(os.path.realpath(file_path))
 
 
-def read_file(file_name):
+def read_file(file_name, from_cache=False):
     file_content = None
-    file_path = PATH + os.sep + file_name
+    path = CACHE_PATH if from_cache else DATA_PATH
+    file_path = path + os.sep + file_name
     with open(file_path, mode='rb') as file:
         file_content = file.read()
 
