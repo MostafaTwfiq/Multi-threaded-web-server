@@ -9,7 +9,7 @@ resources_dict = {}
 
 MY_HOST = b'127.0.0.1'
 MY_PORT = 80
-BUFFER_SIZE = 4096
+BUFFER_SIZE = 10
 sperator = b'\r\n'
 STATUS_200 = b'HTTP/1.1 200 OK' + sperator
 STATUS_404 = b'HTTP/1.1 404 Not Found' + sperator
@@ -39,7 +39,7 @@ def conn_thread_fn(conn, addr, conn_count):
         while True:
             try:
                 # Receive HTTP MSG.
-                conn.settimeout(timeout_heuristic(conn_count))
+                conn.settimeout(timeout_heuristic(conn_count[0]))
                 data = conn.recv(BUFFER_SIZE)
                 conn.settimeout(None)
                 message += data

@@ -2,25 +2,41 @@ import email
 import socket
 import os
 import sys
-import threading
+from threading import *
 import webbrowser
+
+opened_connections = {}  # label: [requests_queue]
 
 HTTP_VERSION = b'HTTP/1.1'
 SERVER_IP = b'127.0.0.1'
-HTTP_PORT = 80
 BUFFER_SIZE = 4096
 PATH = "client_data"
 
 
-def commands_exec_thread(conn, commands, requests_methods):
-    for command in commands:
-        request = generate_http_request(command)
-        method, file_name, _ = request.split(b' ', 2)
-        conn.sendall(request)
-        requests_methods.append([method, file_name])
+def commands_exec_thread(host):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        requests_queue = []
+        sent_requests_queue = []
+        opened_connections[host] = requests_queue
+        ip, port = host.split(':')
+        s.connect((ip, int(port)))
+        rec_resp_thread = Thread(target=receive_responses_thread, args=(s, sent_requests_queue))
+        rec_resp_thread.start()
+
+        while True:
+            if len(requests_queue) > 0:
+                request = requests_queue.pop()
+                method, file_name, _ = request.split(b' ', 2)
+                try:
+                    s.sendall(request)
+                except:
+                    break
+                sent_requests_queue.append([method, file_name])
+
+    del opened_connections[host]
 
 
-def receive_responses_thread(conn, requests_methods):
+def receive_responses_thread(conn, sent_requests_queue):
     with conn:
         message = b''
         while True:
@@ -28,20 +44,23 @@ def receive_responses_thread(conn, requests_methods):
             if len(data) == 0:
                 break
             message += data
-            message, response_dict = parse_http_response(message, requests_methods[0][0])
+            message, response_dict = parse_http_response(message, sent_requests_queue[0][0])
             if response_dict is not None:
-                execute_response(response_dict, requests_methods.pop())
+                execute_response(response_dict, sent_requests_queue.pop())
 
 
 def client(command_file):
     commands = read_commands(command_file)
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((SERVER_IP, HTTP_PORT))
-        requests_methods = []
-        comm_exec_thread = threading.Thread(target=commands_exec_thread, args=(s, commands, requests_methods))
-        rec_resp_thread = threading.Thread(target=receive_responses_thread, args=(s, commands, requests_methods))
-        comm_exec_thread.start()
-        rec_resp_thread.start()
+    for command in commands:
+        request, ip, port = generate_http_request(command)
+        host = ip + port
+        if str(host) not in opened_connections:
+            comm_exec_thread = Thread(target=commands_exec_thread, args=host)
+            comm_exec_thread.start()
+            while host not in opened_connections:
+                continue
+
+        opened_connections[host].append(request)
 
 
 def read_commands(command_file):
@@ -79,10 +98,10 @@ def generate_http_request(command):
     command = command.encode(encoding='UTF-8')
     request = b''
     splitted_command = command.split(b' ')
+    ip = splitted_command[2]
+    port = bytes(80 if len(splitted_command) < 4 else splitted_command[3])
     request = request + splitted_command[0] + b' ' + splitted_command[1] + b' ' + HTTP_VERSION + b'\r\n'
-    request = request + b'HOST: ' + splitted_command[2] + b':' + bytes(
-        80 if len(splitted_command) < 4 else splitted_command[3]
-    ) + b'\r\n' + b'Connection: ' + b'keep-alive' + b'\r\n'
+    request = request + b'HOST: ' + ip + b':' + port + b'\r\n' + b'Connection: ' + b'keep-alive' + b'\r\n'
 
     if splitted_command[0] == b'GET':
         request = request + get_request_headers("GET") + b'\r\n'
@@ -92,7 +111,8 @@ def generate_http_request(command):
         request = request + b'Content-Length:  ' + str(len(data)).encode() + b'\r\n'
         request = request + get_request_headers("POST") + b'\r\n'
         request = request + data + b'\r\n'
-    return request
+
+    return request, ip.decode(), port.decode()
 
 
 def get_request_headers(method):
