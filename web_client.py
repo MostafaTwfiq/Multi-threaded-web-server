@@ -1,10 +1,8 @@
-import email
 import socket
 import os
-import sys
 from threading import *
 import webbrowser
-import time
+import sys
 
 cached_files = []
 opened_connections = {}  # label: requests_queue
@@ -109,8 +107,12 @@ def parse_http_response(data, method):  # data must be bytes
 
     response, remaining_data = data.split(b'\r\n\r\n', 1)
     start_line, headers = response.split(b'\r\n', 1)
-    message = email.message_from_bytes(headers)
-    response_dict = dict(message.items())
+    # parsing headers
+    response_dict = {}
+    splinted_headers = headers.split(b'\r\n')
+    for curr_header in splinted_headers:
+        header_name, header_val = curr_header.split(b':', 1)
+        response_dict[header_name.decode()] = header_val.decode()
     # parsing first line
     splitted_start_line = start_line.split(b' ', 2)
     response_dict['http_version'] = splitted_start_line[0].decode()
@@ -190,6 +192,4 @@ def read_file(file_name, from_cache=False):
 
 
 if __name__ == "__main__":
-    cached_files.append('127.0.0.1:2000-f.txt')
-    client('commands.txt')
-    #client(sys.argv[1])
+    client(sys.argv[1])

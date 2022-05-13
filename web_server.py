@@ -1,4 +1,3 @@
-import email
 import os
 import socket
 from os import path
@@ -82,13 +81,17 @@ def parse_http_request(data):  # data must be bytes
 
     request, remaining_data = data.split(b'\r\n\r\n', 1)
     start_line, headers = request.split(b'\r\n', 1)
-    message = email.message_from_bytes(headers)
-    request_dict = dict(message.items())
+    # parsing headers
+    request_dict = {}
+    splinted_headers = headers.split(b'\r\n')
+    for curr_header in splinted_headers:
+        header_name, header_val = curr_header.split(b':', 1)
+        request_dict[header_name.decode()] = header_val.decode()
     # parsing first line
-    splitted_start_line = start_line.split(b' ')
-    request_dict['method'] = splitted_start_line[0].decode()
-    request_dict['file_name'] = splitted_start_line[1].decode()
-    request_dict['http_version'] = splitted_start_line[2].decode()
+    splinted_start_line = start_line.split(b' ')
+    request_dict['method'] = splinted_start_line[0].decode()
+    request_dict['file_name'] = splinted_start_line[1].decode()
+    request_dict['http_version'] = splinted_start_line[2].decode()
     if request_dict['method'] == 'POST':
         file_length = int(request_dict['Content-Length'])
         if file_length <= len(remaining_data):
