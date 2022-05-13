@@ -4,6 +4,7 @@ import os
 import sys
 from threading import *
 import webbrowser
+import time
 
 cached_files = []
 opened_connections = {}  # label: requests_queue
@@ -56,12 +57,12 @@ def get_file_if_cached(command):
     method = splitted_command[0]
     file_path = splitted_command[1]
     ip = splitted_command[2]
-    port = bytes(80 if len(splitted_command) < 4 else splitted_command[3])
+    port = 80 if len(splitted_command) < 4 else splitted_command[3]
     cached_file_key = ip + ':' + str(port) + '-' + file_path
     if method == 'GET' and cached_file_key in cached_files:
         return file_path, read_file(file_path, True)
 
-    return None
+    return None, None
 
 
 def client(command_file):
@@ -70,7 +71,10 @@ def client(command_file):
         # Check if the file is cached.
         file_path, file_data = get_file_if_cached(command)
         if file_data is not None:
+            # TODO: check if we need to handle the case that the generating requests loop is faster than the real
+            #  sending of them, which may deficit the job of the cache,
             store_file(file_path, file_data)
+            continue
 
         # The file is not cached, create new response.
         request, ip, port = generate_http_request(command)
@@ -186,5 +190,6 @@ def read_file(file_name, from_cache=False):
 
 
 if __name__ == "__main__":
+    cached_files.append('127.0.0.1:2000-f.txt')
     client('commands.txt')
     #client(sys.argv[1])
