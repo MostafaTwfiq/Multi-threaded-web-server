@@ -20,6 +20,7 @@ def commands_exec_thread(host):
         sent_requests_queue = []
         opened_connections[host] = requests_queue
         ip, port = host.split(':')
+        # TODO: This can throw exception. Consider handling it.
         s.connect((ip, int(port)))
         rec_resp_thread = Thread(target=receive_responses_thread, args=(s, sent_requests_queue, host))
         rec_resp_thread.start()
@@ -146,13 +147,14 @@ def generate_http_request(command):
     elif splitted_command[0] == b'POST':
         data = read_file(splitted_command[1].decode(encoding='UTF-8'))
         request = request + b'Content-Type: ' + get_content_type(splitted_command[1].decode(encoding='UTF-8')) + b'\r\n'
-        request = request + b'Content-Length:  ' + str(len(data)).encode() + b'\r\n'
+        request = request + b'Content-Length: ' + str(len(data)).encode() + b'\r\n'
         request = request + get_request_headers("POST") + b'\r\n'
         request = request + data
 
     return request, ip.decode(), port.decode()
 
 
+# TODO: Remove this or nazel elly fo2 hna zy ma tifa 3ayz.
 def get_request_headers(method):
     if method == 'GET':
         return b''

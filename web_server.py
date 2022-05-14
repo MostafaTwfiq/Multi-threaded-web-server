@@ -51,7 +51,7 @@ def conn_thread_fn(conn, addr, conn_count):
                             http_response = write_http_respond(request_dict, server_result)
                             conn.sendall(http_response)
                             raise ValueError("Closing Http/1.0 connection.")
-                        elif request_dict['http_version'] == 'HTTP/1.1':
+                        elif request_dict['http_version'] == 'HTTP/1.1': # TODO connection header 
                             requests_queue.append(request_dict)
 
             except Exception as e:
@@ -59,7 +59,7 @@ def conn_thread_fn(conn, addr, conn_count):
                 break
 
         conn.close()
-        conn_count[0] -= 1
+        conn_count[0] -= 1 # TODO semaphore
         conn_flag[0] = False
 
 
