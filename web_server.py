@@ -5,7 +5,7 @@ from threading import *
 
 resources_semaphore = Semaphore(1)
 resources_dict = {}
-
+count_semaphore = Semaphore(1)
 MY_HOST = b'127.0.0.1'
 MY_PORT = 2000
 BUFFER_SIZE = 4096
@@ -27,7 +27,9 @@ def server():
 
 
 def conn_thread_fn(conn, addr, conn_count):
+    count_semaphore.acquire()
     conn_count[0] += 1
+    count_semaphore.release()
     requests_queue = []
     conn_flag = [True]
     requests_thread = Thread(target=requests_thread_fn, args=(conn, requests_queue, conn_flag))
@@ -51,7 +53,7 @@ def conn_thread_fn(conn, addr, conn_count):
                             http_response = write_http_respond(request_dict, server_result)
                             conn.sendall(http_response)
                             raise ValueError("Closing Http/1.0 connection.")
-                        elif request_dict['http_version'] == 'HTTP/1.1': # TODO connection header 
+                        elif request_dict['http_version'] == 'HTTP/1.1' and request_dict['Connection'] == 'keep-alive': # TODO connection header 
                             requests_queue.append(request_dict)
 
             except Exception as e:
@@ -59,8 +61,13 @@ def conn_thread_fn(conn, addr, conn_count):
                 break
 
         conn.close()
+        count_semaphore.acquire()
+
         conn_count[0] -= 1 # TODO semaphore
+        count_semaphore.release()
+
         conn_flag[0] = False
+
 
 
 def requests_thread_fn(conn, requests_queue, conn_flag):
