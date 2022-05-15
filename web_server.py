@@ -1,12 +1,12 @@
-import email
 import os
 import socket
 from os import path
 from threading import *
+from datetime import datetime
 
 resources_semaphore = Semaphore(1)
 resources_dict = {}
-
+count_semaphore = Semaphore(1)
 MY_HOST = b'127.0.0.1'
 MY_PORT = 2000
 BUFFER_SIZE = 4096
@@ -14,7 +14,8 @@ sperator = b'\r\n'
 STATUS_200 = b'HTTP/1.1 200 OK' + sperator
 STATUS_404 = b'HTTP/1.1 404 Not Found' + sperator
 PATH = "server_data"
-
+LOG_PATH = "server_log.txt"
+time = datetime.now()
 
 def server():
     connections_count = [0]
@@ -28,13 +29,17 @@ def server():
 
 
 def conn_thread_fn(conn, addr, conn_count):
+    count_semaphore.acquire()
     conn_count[0] += 1
+    count_semaphore.release()
+
     requests_queue = []
     conn_flag = [True]
-    requests_thread = Thread(target=requests_thread_fn, args=(conn, requests_queue, conn_flag))
+    requests_thread = Thread(target=requests_thread_fn, args=(conn, requests_queue, conn_flag, addr))
     requests_thread.start()
     with conn:
         print(f"Connected by {addr}")
+        write_log_file(f"Connected by {addr}")
         message = b''
         while True:
             try:
@@ -47,30 +52,41 @@ def conn_thread_fn(conn, addr, conn_count):
                 while request_dict:
                     message, request_dict = parse_http_request(data=message)
                     if request_dict is not None:
-                        if request_dict['http_version'] == 'HTTP/1.0':
+                        if request_dict['http_version'] == 'HTTP/1.1' and request_dict['connection'] == 'keep-alive':
+                            requests_queue.append(request_dict)
+                        elif request_dict['http_version'] == 'HTTP/1.0' or (request_dict['http_version'] == 'HTTP/1.1' and request_dict['connection'] == 'close'):
                             server_result = get_response(request_dict)
                             http_response = write_http_respond(request_dict, server_result)
+                            write_log_file(f"Sending HTTP 1.0 response to address {addr}")
                             conn.sendall(http_response)
-                            raise ValueError("Closing Http/1.0 connection.")
-                        elif request_dict['http_version'] == 'HTTP/1.1':
-                            requests_queue.append(request_dict)
+                            raise ValueError("closing")
 
             except Exception as e:
+                if e == "closing":
+                    write_log_file(f"Closing {addr} as it is a none persistent connection.")
+                else:
+                    write_log_file(f"A timeout occur in the connection {addr}")
                 print(e)
                 break
 
         conn.close()
+
+        count_semaphore.acquire()
         conn_count[0] -= 1
+        count_semaphore.release()
+
         conn_flag[0] = False
 
 
-def requests_thread_fn(conn, requests_queue, conn_flag):
+
+def requests_thread_fn(conn, requests_queue, conn_flag, addr):
     while conn_flag[0]:
         if len(requests_queue) > 0:
             request_dict = requests_queue.pop(0)
             server_result = get_response(request_dict)
             http_response = write_http_respond(request_dict, server_result)
             try:
+                # write_log_file(f"Sending HTTP 1.1 response to address {addr}")
                 conn.sendall(http_response)
             except Exception as e:
                 print(e)
@@ -82,15 +98,19 @@ def parse_http_request(data):  # data must be bytes
 
     request, remaining_data = data.split(b'\r\n\r\n', 1)
     start_line, headers = request.split(b'\r\n', 1)
-    message = email.message_from_bytes(headers)
-    request_dict = dict(message.items())
+    # parsing headers
+    request_dict = {}
+    splinted_headers = headers.split(b'\r\n')
+    for curr_header in splinted_headers:
+        header_name, header_val = curr_header.split(b':', 1)
+        request_dict[header_name.decode().lower()] = header_val.lstrip().decode()
     # parsing first line
-    splitted_start_line = start_line.split(b' ')
-    request_dict['method'] = splitted_start_line[0].decode()
-    request_dict['file_name'] = splitted_start_line[1].decode()
-    request_dict['http_version'] = splitted_start_line[2].decode()
+    splinted_start_line = start_line.split(b' ')
+    request_dict['method'] = splinted_start_line[0].decode()
+    request_dict['file_name'] = splinted_start_line[1].decode()
+    request_dict['http_version'] = splinted_start_line[2].decode()
     if request_dict['method'] == 'POST':
-        file_length = int(request_dict['Content-Length'])
+        file_length = int(request_dict['content-length'])
         if file_length <= len(remaining_data):
             request_dict['file_data'] = remaining_data[0:file_length:1]
             if len(remaining_data) - file_length == 0:
@@ -198,6 +218,12 @@ def read_file(file_name):
 def timeout_heuristic(conn_count):
     return 10 * 1 / conn_count
 
+def write_log_file(msg):
+    current_time = time.strftime("%H:%M:%S")
+    with open(LOG_PATH, mode='a') as file:
+        file.write(current_time + '\r')
+        file.write(msg + '\r\n')
 
 if __name__ == "__main__":
+    write_log_file(f'Server is Statrt Host Name {MY_HOST} and Port {MY_PORT}')
     server()

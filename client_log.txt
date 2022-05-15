@@ -1,0 +1,7 @@
+19:29:57Sending to Host Name 127.0.0.1 and Port Number 2000 with method b'GET'
+19:29:57Sending to Host Name 127.0.0.1 and Port Number 2000 with method b'POST'
+19:29:57Sending to Host Name 127.0.0.1 and Port Number 2000 with method b'GET'
+19:29:57Sending to Host Name info.cern.ch and Port Number 80 with method b'GET'
+19:29:57Receiving request from Host Name 127.0.0.1:2000
+19:29:57Receiving request from Host Name info.cern.ch:80
+19:29:57Receiving request from Host Name 127.0.0.1:2000
