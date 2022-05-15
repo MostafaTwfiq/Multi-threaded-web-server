@@ -55,7 +55,7 @@ def conn_thread_fn(conn, addr, conn_count):
                     if request_dict is not None:
                         write_log_file(
                             f"Received request from {addr}, with method {request_dict['method']}, and file {request_dict['file_name']}")
-                        if request_dict['http_version'] == 'HTTP/1.1' and request_dict['connection'] == 'keep-alive':
+                        if (request_dict['http_version'] == 'HTTP/1.1' or request_dict['http_version'] == 'HTTP/1.0') and request_dict['connection'] == 'keep-alive':
                             requests_queue.append(request_dict)
                         else:  # In this case it may be http1.0 or even http1.1 with a Connection: close
                             server_result = get_response(request_dict)
