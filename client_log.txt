@@ -1,7 +1,16 @@
-19:29:57Sending to Host Name 127.0.0.1 and Port Number 2000 with method b'GET'
-19:29:57Sending to Host Name 127.0.0.1 and Port Number 2000 with method b'POST'
-19:29:57Sending to Host Name 127.0.0.1 and Port Number 2000 with method b'GET'
-19:29:57Sending to Host Name info.cern.ch and Port Number 80 with method b'GET'
-19:29:57Receiving request from Host Name 127.0.0.1:2000
-19:29:57Receiving request from Host Name info.cern.ch:80
-19:29:57Receiving request from Host Name 127.0.0.1:2000
+20:43:57Established new connection with 127.0.0.1:2000
+20:43:57Sending request to Host Name 127.0.0.1 and Port Number 2000 with method b'GET', and file is b'f.txt'
+20:43:57Request to Host Name 127.0.0.1 and Port Number 2000 with method b'GET', and file is b'f.txt' was sent successfully
+20:43:57Sending request to Host Name 127.0.0.1 and Port Number 2000 with method b'POST', and file is b'sample_image.png'
+20:43:57Request to Host Name 127.0.0.1 and Port Number 2000 with method b'POST', and file is b'sample_image.png' was sent successfully
+20:43:57Sending request to Host Name 127.0.0.1 and Port Number 2000 with method b'GET', and file is b'f.txt'
+20:43:57Request to Host Name 127.0.0.1 and Port Number 2000 with method b'GET', and file is b'f.txt' was sent successfully
+20:43:57Sending request to Host Name 127.0.0.1 and Port Number 2000 with method b'GET', and file is b'sample_image.png'
+20:43:57Request to Host Name 127.0.0.1 and Port Number 2000 with method b'GET', and file is b'sample_image.png' was sent successfully
+20:43:57Sending request to Host Name 127.0.0.1 and Port Number 2000 with method b'POST', and file is b'f.txt'
+20:43:57Request to Host Name 127.0.0.1 and Port Number 2000 with method b'POST', and file is b'f.txt' was sent successfully
+20:43:57Received response from the Host 127.0.0.1:2000 for the method GET, and file f.txt
+20:43:57Received response from the Host 127.0.0.1:2000 for the method POST, and file sample_image.png
+20:43:57Received response from the Host 127.0.0.1:2000 for the method GET, and file f.txt
+20:43:57Received response from the Host 127.0.0.1:2000 for the method GET, and file sample_image.png
+20:43:57The connection with the host 127.0.0.1:2000 is closed

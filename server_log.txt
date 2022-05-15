@@ -1,3 +1,18 @@
-19:29:18Server is Statrt Host Name b'127.0.0.1' and Port 2000
-19:29:18Connected by ('127.0.0.1', 50698)
-19:29:18A timeout occur in the connection ('127.0.0.1', 50698)
+20:43:53Server is now listening to the ip b'127.0.0.1' and Port 2000
+20:43:53Connected by ('127.0.0.1', 52984)
+20:43:53Received request from ('127.0.0.1', 52984), with method GET, and file f.txt
+20:43:53Sending response to ('127.0.0.1', 52984), for the request with method GET, and file f.txt
+20:43:53Response to ('127.0.0.1', 52984), for the request with method GET, and file f.txt was sent successfully
+20:43:53Received request from ('127.0.0.1', 52984), with method POST, and file sample_image.png
+20:43:53Received request from ('127.0.0.1', 52984), with method GET, and file f.txt
+20:43:53Received request from ('127.0.0.1', 52984), with method GET, and file sample_image.png
+20:43:53Received request from ('127.0.0.1', 52984), with method POST, and file f.txt
+20:43:53Sending response to ('127.0.0.1', 52984), for the request with method POST, and file sample_image.png
+20:43:53Response to ('127.0.0.1', 52984), for the request with method POST, and file sample_image.png was sent successfully
+20:43:53Sending response to ('127.0.0.1', 52984), for the request with method GET, and file f.txt
+20:43:53Response to ('127.0.0.1', 52984), for the request with method GET, and file f.txt was sent successfully
+20:43:53Sending response to ('127.0.0.1', 52984), for the request with method GET, and file sample_image.png
+20:43:53Response to ('127.0.0.1', 52984), for the request with method GET, and file sample_image.png was sent successfully
+20:43:53Sending response to ('127.0.0.1', 52984), for the request with method POST, and file f.txt
+20:43:53Response to ('127.0.0.1', 52984), for the request with method POST, and file f.txt was sent successfully
+20:43:53A timeout occur in the connection ('127.0.0.1', 52984)

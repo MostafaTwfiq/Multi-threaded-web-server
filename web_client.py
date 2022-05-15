@@ -16,8 +16,10 @@ CACHE_PATH = 'cache'
 LOG_PATH = "client_log.txt"
 time = datetime.now()
 
+
 def commands_exec_thread(host):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        conn_flag = [True]
         requests_queue = []
         sent_requests_queue = []
         opened_connections[host] = requests_queue
@@ -25,38 +27,47 @@ def commands_exec_thread(host):
 
         try:
             s.connect((ip, int(port)))
-            rec_resp_thread = Thread(target=receive_responses_thread, args=(s, sent_requests_queue, host))
+            rec_resp_thread = Thread(target=receive_responses_thread, args=(s, sent_requests_queue, host, conn_flag))
             rec_resp_thread.start()
         except Exception as e:
             write_log_file(f"Couldn't create connection: {host}")
             print(e)
 
-        while True:
+        while conn_flag[0]:
             if len(requests_queue) > 0:
                 request = requests_queue.pop(0)
                 method, file_name, _ = request.split(b' ', 2)
                 try:
-                    write_log_file(f"Sending to Host Name {ip} and Port Number {port} with method {method}")
+                    write_log_file(f"Sending request to Host Name {ip} and Port Number {port} with method {method}, "
+                                   f"and file is {file_name}")
                     s.sendall(request)
+                    write_log_file(f"Request to Host Name {ip} and Port Number {port} with method {method}, "
+                                   f"and file is {file_name} was sent successfully")
                 except:
-                    write_log_file(f"The connection {host} is closed.")
+                    write_log_file(f"The connection with {host} is closed.")
                     break
                 sent_requests_queue.append([method.decode(), file_name.decode()])
+
+    conn_flag[0] = False
     del opened_connections[host]
+    write_log_file(f"The connection with the host {host} is closed")
 
 
-def receive_responses_thread(conn, sent_requests_queue, host):
+def receive_responses_thread(conn, sent_requests_queue, host, conn_flag):
     with conn:
         message = b''
-        while True:
+        while conn_flag[0]:
             data = conn.recv(BUFFER_SIZE)
             if len(data) == 0:
                 break
             message += data
             message, response_dict = parse_http_response(message, sent_requests_queue[0][0])
             if response_dict is not None:
-                write_log_file(f"Receiving request from Host Name {host}")
+                write_log_file(
+                    f"Received response from the Host {host} for the method {sent_requests_queue[0][0]}, and file {sent_requests_queue[0][1]}")
                 execute_response(response_dict, sent_requests_queue.pop(0), host)
+
+    conn_flag[0] = False
 
 
 def get_file_if_cached(command):
@@ -89,6 +100,7 @@ def client(command_file):
             comm_exec_thread.start()
             while host not in opened_connections:
                 continue
+            write_log_file(f"Established new connection with {host}")
 
         opened_connections[host].append(request)
 
@@ -154,6 +166,7 @@ def generate_http_request(command):
         data = read_file(splitted_command[1].decode(encoding='UTF-8'))
         request = request + b'Content-Type: ' + get_content_type(splitted_command[1].decode(encoding='UTF-8')) + b'\r\n'
         request = request + b'Content-Length: ' + str(len(data)).encode() + b'\r\n'
+        request = request + b'Connection: ' + b'keep-alive' + b'\r\n'
         request = request + b'\r\n'
         request = request + data
 
@@ -189,6 +202,7 @@ def read_file(file_name, from_cache=False):
         file_content = file.read()
 
     return file_content
+
 
 def write_log_file(msg):
     current_time = time.strftime("%H:%M:%S")
