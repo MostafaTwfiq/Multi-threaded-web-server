@@ -144,7 +144,7 @@ def generate_http_request(command):
     request = b''
     splitted_command = command.split(b' ')
     ip = splitted_command[2]
-    port = bytes(80 if len(splitted_command) < 4 else splitted_command[3])
+    port = bytes(b'80' if len(splitted_command) < 4 else splitted_command[3])
     request = request + splitted_command[0] + b' ' + splitted_command[1] + b' ' + HTTP_VERSION + b'\r\n'
     request = request + b'HOST: ' + ip + b':' + port + b'\r\n' + b'Connection: ' + b'keep-alive' + b'\r\n'
 
