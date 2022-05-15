@@ -3,6 +3,7 @@ import os
 from threading import *
 import webbrowser
 import sys
+from datetime import datetime
 
 cached_files = []
 opened_connections = {}  # label: requests_queue
@@ -12,7 +13,8 @@ SERVER_IP = b'127.0.0.1'
 BUFFER_SIZE = 4096
 DATA_PATH = 'client_data'
 CACHE_PATH = 'cache'
-
+LOG_PATH = "client_log.txt"
+time = datetime.now()
 
 def commands_exec_thread(host):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -21,19 +23,24 @@ def commands_exec_thread(host):
         opened_connections[host] = requests_queue
         ip, port = host.split(':')
         # TODO: This can throw exception. Consider handling it.
-        s.connect((ip, int(port)))
-        rec_resp_thread = Thread(target=receive_responses_thread, args=(s, sent_requests_queue, host))
-        rec_resp_thread.start()
+        try:
+            s.connect((ip, int(port)))
+            write_log_file(f"Connection to Host Name {ip} and Port Number {port}")
+            rec_resp_thread = Thread(target=receive_responses_thread, args=(s, sent_requests_queue, host))
+            rec_resp_thread.start()
 
-        while True:
-            if len(requests_queue) > 0:
-                request = requests_queue.pop(0)
-                method, file_name, _ = request.split(b' ', 2)
-                try:
-                    s.sendall(request)
-                except:
-                    break
-                sent_requests_queue.append([method.decode(), file_name.decode()])
+            while True:
+                if len(requests_queue) > 0:
+                    request = requests_queue.pop(0)
+                    method, file_name, _ = request.split(b' ', 2)
+                    try:
+                        write_log_file(f"Sending to Host Name {ip} and Port Number {port} with method {method}")
+                        s.sendall(request)
+                    except:
+                        break
+                    sent_requests_queue.append([method.decode(), file_name.decode()])
+        except:
+            print("Connection Error Host Name Not Found")
 
     del opened_connections[host]
 
@@ -48,6 +55,7 @@ def receive_responses_thread(conn, sent_requests_queue, host):
             message += data
             message, response_dict = parse_http_response(message, sent_requests_queue[0][0])
             if response_dict is not None:
+                write_log_file(f"Receiving request from Host Name {host}")
                 execute_response(response_dict, sent_requests_queue.pop(0), host)
 
 
@@ -191,6 +199,12 @@ def read_file(file_name, from_cache=False):
         file_content = file.read()
 
     return file_content
+
+def write_log_file(msg):
+    current_time = time.strftime("%H:%M:%S")
+    with open(LOG_PATH, mode='a') as file:
+        file.write(current_time + '\r')
+        file.write(msg + '\r\n')
 
 
 if __name__ == "__main__":

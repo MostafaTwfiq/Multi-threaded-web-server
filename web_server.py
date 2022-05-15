@@ -2,6 +2,7 @@ import os
 import socket
 from os import path
 from threading import *
+from datetime import datetime
 
 resources_semaphore = Semaphore(1)
 resources_dict = {}
@@ -13,7 +14,8 @@ sperator = b'\r\n'
 STATUS_200 = b'HTTP/1.1 200 OK' + sperator
 STATUS_404 = b'HTTP/1.1 404 Not Found' + sperator
 PATH = "server_data"
-
+LOG_PATH = "server_log.txt"
+time = datetime.now()
 
 def server():
     connections_count = [0]
@@ -32,10 +34,11 @@ def conn_thread_fn(conn, addr, conn_count):
     count_semaphore.release()
     requests_queue = []
     conn_flag = [True]
-    requests_thread = Thread(target=requests_thread_fn, args=(conn, requests_queue, conn_flag))
+    requests_thread = Thread(target=requests_thread_fn, args=(conn, requests_queue, conn_flag, addr))
     requests_thread.start()
     with conn:
         print(f"Connected by {addr}")
+        write_log_file(f"Connected by {addr}")
         message = b''
         while True:
             try:
@@ -51,12 +54,14 @@ def conn_thread_fn(conn, addr, conn_count):
                         if request_dict['http_version'] == 'HTTP/1.0':
                             server_result = get_response(request_dict)
                             http_response = write_http_respond(request_dict, server_result)
+                            write_log_file(f"Sending HTTP 1.0 response to address {addr}")
                             conn.sendall(http_response)
                             raise ValueError("Closing Http/1.0 connection.")
                         elif request_dict['http_version'] == 'HTTP/1.1' and request_dict['Connection'] == 'keep-alive': # TODO connection header 
                             requests_queue.append(request_dict)
 
             except Exception as e:
+                write_log_file(f"Connection is Time out of address {addr}")
                 print(e)
                 break
 
@@ -70,13 +75,14 @@ def conn_thread_fn(conn, addr, conn_count):
 
 
 
-def requests_thread_fn(conn, requests_queue, conn_flag):
+def requests_thread_fn(conn, requests_queue, conn_flag, addr):
     while conn_flag[0]:
         if len(requests_queue) > 0:
             request_dict = requests_queue.pop(0)
             server_result = get_response(request_dict)
             http_response = write_http_respond(request_dict, server_result)
             try:
+                write_log_file(f"Sending HTTP 1.1 response to address {addr}")
                 conn.sendall(http_response)
             except Exception as e:
                 print(e)
@@ -208,6 +214,12 @@ def read_file(file_name):
 def timeout_heuristic(conn_count):
     return 10 * 1 / conn_count
 
+def write_log_file(msg):
+    current_time = time.strftime("%H:%M:%S")
+    with open(LOG_PATH, mode='a') as file:
+        file.write(current_time + '\r')
+        file.write(msg + '\r\n')
 
 if __name__ == "__main__":
+    write_log_file(f'Server is Statrt Host Name {MY_HOST} and Port {MY_PORT}')
     server()
