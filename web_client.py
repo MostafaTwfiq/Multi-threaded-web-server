@@ -20,10 +20,13 @@ def commands_exec_thread(host):
         sent_requests_queue = []
         opened_connections[host] = requests_queue
         ip, port = host.split(':')
-        # TODO: This can throw exception. Consider handling it.
-        s.connect((ip, int(port)))
-        rec_resp_thread = Thread(target=receive_responses_thread, args=(s, sent_requests_queue, host))
-        rec_resp_thread.start()
+        try:
+            s.connect((ip, int(port)))
+            rec_resp_thread = Thread(target=receive_responses_thread, args=(s, sent_requests_queue, host))
+            rec_resp_thread.start()
+        except Exception as e:
+            print("Couldn't create connection: " + host)
+            print(e)
 
         while True:
             if len(requests_queue) > 0:
@@ -32,6 +35,7 @@ def commands_exec_thread(host):
                 try:
                     s.sendall(request)
                 except:
+                    print("The connection " + host + " is closed.")
                     break
                 sent_requests_queue.append([method.decode(), file_name.decode()])
 
@@ -70,8 +74,6 @@ def client(command_file):
         # Check if the file is cached.
         file_path, file_data = get_file_if_cached(command)
         if file_data is not None:
-            # TODO: check if we need to handle the case that the generating requests loop is faster than the real
-            #  sending of them, which may deficit the job of the cache,
             store_file(file_path, file_data)
             continue
 
@@ -79,7 +81,7 @@ def client(command_file):
         request, ip, port = generate_http_request(command)
         host = ip + ':' + port
         if host not in opened_connections:
-            comm_exec_thread = Thread(target=commands_exec_thread, args=(host, ))
+            comm_exec_thread = Thread(target=commands_exec_thread, args=(host,))
             comm_exec_thread.start()
             while host not in opened_connections:
                 continue
@@ -113,14 +115,14 @@ def parse_http_response(data, method):  # data must be bytes
     splinted_headers = headers.split(b'\r\n')
     for curr_header in splinted_headers:
         header_name, header_val = curr_header.split(b':', 1)
-        response_dict[header_name.decode()] = header_val.decode()
+        response_dict[header_name.decode().lower()] = header_val.decode()
     # parsing first line
     splitted_start_line = start_line.split(b' ', 2)
     response_dict['http_version'] = splitted_start_line[0].decode()
     response_dict['response_code'] = splitted_start_line[1].decode()
     response_dict['response_state'] = splitted_start_line[2].decode()
     if method == 'GET':
-        file_length = int(response_dict['Content-Length'])
+        file_length = int(response_dict['content-Length'])
         if file_length <= len(remaining_data):
             response_dict['file_data'] = remaining_data[0:file_length:1]
             if len(remaining_data) - file_length == 0:
@@ -143,23 +145,15 @@ def generate_http_request(command):
     request = request + b'HOST: ' + ip + b':' + port + b'\r\n' + b'Connection: ' + b'keep-alive' + b'\r\n'
 
     if splitted_command[0] == b'GET':
-        request = request + get_request_headers("GET") + b'\r\n'
+        request = request + b'\r\n'
     elif splitted_command[0] == b'POST':
         data = read_file(splitted_command[1].decode(encoding='UTF-8'))
         request = request + b'Content-Type: ' + get_content_type(splitted_command[1].decode(encoding='UTF-8')) + b'\r\n'
         request = request + b'Content-Length: ' + str(len(data)).encode() + b'\r\n'
-        request = request + get_request_headers("POST") + b'\r\n'
+        request = request + b'\r\n'
         request = request + data
 
     return request, ip.decode(), port.decode()
-
-
-# TODO: Remove this or nazel elly fo2 hna zy ma tifa 3ayz.
-def get_request_headers(method):
-    if method == 'GET':
-        return b''
-    elif method == 'POST':
-        return b''
 
 
 def get_content_type(file_path):

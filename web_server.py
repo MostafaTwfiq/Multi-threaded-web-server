@@ -30,9 +30,10 @@ def conn_thread_fn(conn, addr, conn_count):
     count_semaphore.acquire()
     conn_count[0] += 1
     count_semaphore.release()
+
     requests_queue = []
     conn_flag = [True]
-    requests_thread = Thread(target=requests_thread_fn, args=(conn, requests_queue, conn_flag))
+    requests_thread = Thread(target=responses_thread_fn, args=(conn, requests_queue, conn_flag))
     requests_thread.start()
     with conn:
         print(f"Connected by {addr}")
@@ -48,29 +49,32 @@ def conn_thread_fn(conn, addr, conn_count):
                 while request_dict:
                     message, request_dict = parse_http_request(data=message)
                     if request_dict is not None:
-                        if request_dict['http_version'] == 'HTTP/1.0':
+                        if request_dict['http_version'] == 'HTTP/1.1' and request_dict['connection'] == 'keep-alive':
+                            requests_queue.append(request_dict)
+                        elif request_dict['http_version'] == 'HTTP/1.0' or (request_dict['http_version'] == 'HTTP/1.1' and request_dict['connection'] == 'close'):
                             server_result = get_response(request_dict)
                             http_response = write_http_respond(request_dict, server_result)
                             conn.sendall(http_response)
-                            raise ValueError("Closing Http/1.0 connection.")
-                        elif request_dict['http_version'] == 'HTTP/1.1' and request_dict['Connection'] == 'keep-alive': # TODO connection header 
-                            requests_queue.append(request_dict)
+                            raise ValueError("closing")
 
             except Exception as e:
+                if e == "closing":
+                    print("Closing " + addr + " as it is a none persistent connection.")
+                else:
+                    print("A timeout occur in the connection " + addr)
                 print(e)
                 break
 
         conn.close()
-        count_semaphore.acquire()
 
-        conn_count[0] -= 1 # TODO semaphore
+        count_semaphore.acquire()
+        conn_count[0] -= 1
         count_semaphore.release()
 
         conn_flag[0] = False
 
 
-
-def requests_thread_fn(conn, requests_queue, conn_flag):
+def responses_thread_fn(conn, requests_queue, conn_flag):
     while conn_flag[0]:
         if len(requests_queue) > 0:
             request_dict = requests_queue.pop(0)
@@ -93,14 +97,14 @@ def parse_http_request(data):  # data must be bytes
     splinted_headers = headers.split(b'\r\n')
     for curr_header in splinted_headers:
         header_name, header_val = curr_header.split(b':', 1)
-        request_dict[header_name.decode()] = header_val.decode()
+        request_dict[header_name.decode().lower()] = header_val.decode()
     # parsing first line
     splinted_start_line = start_line.split(b' ')
     request_dict['method'] = splinted_start_line[0].decode()
     request_dict['file_name'] = splinted_start_line[1].decode()
     request_dict['http_version'] = splinted_start_line[2].decode()
     if request_dict['method'] == 'POST':
-        file_length = int(request_dict['Content-Length'])
+        file_length = int(request_dict['content-length'])
         if file_length <= len(remaining_data):
             request_dict['file_data'] = remaining_data[0:file_length:1]
             if len(remaining_data) - file_length == 0:
@@ -135,7 +139,7 @@ def get_response(message_dic):
             server_result['status'] = 200
         else:
             server_result['status'] = 404
-    elif message_dic['method'] == 'GET':
+    elif message_dic['method'] == 'POST':
         # readers-writer semaphore
         mutix.acquire()
         readers += 1
