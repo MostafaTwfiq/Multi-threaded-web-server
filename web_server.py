@@ -103,7 +103,7 @@ def parse_http_request(data):  # data must be bytes
     splinted_headers = headers.split(b'\r\n')
     for curr_header in splinted_headers:
         header_name, header_val = curr_header.split(b':', 1)
-        request_dict[header_name.decode().lower()] = header_val.decode()
+        request_dict[header_name.decode().lower()] = header_val.lstrip().decode()
     # parsing first line
     splinted_start_line = start_line.split(b' ')
     request_dict['method'] = splinted_start_line[0].decode()
@@ -145,7 +145,7 @@ def get_response(message_dic):
             server_result['status'] = 200
         else:
             server_result['status'] = 404
-    elif message_dic['method'] == 'POST':
+    elif message_dic['method'] == 'GET':
         # readers-writer semaphore
         mutix.acquire()
         readers += 1

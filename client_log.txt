@@ -1,0 +1,5 @@
+18:40:38Sending to Host Name 127.0.0.1 and Port Number 2000 with method b'GET'
+18:40:38Sending to Host Name 127.0.0.1 and Port Number 2000 with method b'POST'
+18:40:38Sending to Host Name 127.0.0.1 and Port Number 2000 with method b'GET'
+18:40:38Receiving request from Host Name 127.0.0.1:2000
+18:40:38Receiving request from Host Name 127.0.0.1:2000

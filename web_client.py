@@ -36,6 +36,7 @@ def commands_exec_thread(host):
                 request = requests_queue.pop(0)
                 method, file_name, _ = request.split(b' ', 2)
                 try:
+                    write_log_file(f"Sending to Host Name {ip} and Port Number {port} with method {method}")
                     s.sendall(request)
                 except:
                     write_log_file(f"The connection {host} is closed.")
@@ -118,14 +119,14 @@ def parse_http_response(data, method):  # data must be bytes
     splinted_headers = headers.split(b'\r\n')
     for curr_header in splinted_headers:
         header_name, header_val = curr_header.split(b':', 1)
-        response_dict[header_name.decode().lower()] = header_val.decode()
+        response_dict[header_name.decode().lower()] = header_val.lstrip().decode()
     # parsing first line
     splitted_start_line = start_line.split(b' ', 2)
     response_dict['http_version'] = splitted_start_line[0].decode()
     response_dict['response_code'] = splitted_start_line[1].decode()
     response_dict['response_state'] = splitted_start_line[2].decode()
     if method == 'GET':
-        file_length = int(response_dict['content-Length'])
+        file_length = int(response_dict['content-length'])
         if file_length <= len(remaining_data):
             response_dict['file_data'] = remaining_data[0:file_length:1]
             if len(remaining_data) - file_length == 0:
